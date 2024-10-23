@@ -59,7 +59,7 @@ def delivery_report(err, msg):
         print(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
 
-async def generate_responses() -> None:
+def generate_responses() -> None:
     batch_states: List[SequenceState] = []
     print("Starting generate_responses()")
 
@@ -68,12 +68,12 @@ async def generate_responses() -> None:
         try:
             print("\n\n-----Entering generate_responses loop-----\n\n")
             # Fill up the batch with available requests
-            await fill_batch(batch_states, requests_queue, model_handler, config.BATCH_SIZE)
+            fill_batch(batch_states, requests_queue, model_handler, config.BATCH_SIZE)
             print(f"Batch states after fill_batch: {batch_states}")
 
             if not batch_states:
                 print("No batch states available, sleeping for 0.01 seconds.")
-                await asyncio.sleep(0.01)  # No requests to process
+                time.sleep(0.01)  # No requests to process
                 continue
 
             current_batch_size = min(len(batch_states), config.BATCH_SIZE)
@@ -215,14 +215,14 @@ async def generate_responses() -> None:
                     print(f"For prompt '{prompt_text}' we have generated {previous_tokens_list} previously and now generated '{token_text}'\n")
 
             # Fill up the batch with new requests
-            await fill_batch(batch_states, requests_queue, model_handler, batch_size)
+            fill_batch(batch_states, requests_queue, model_handler, batch_size)
             print(f"Batch states after refill: {batch_states}")
 
             end_time = time.time()
             print(f"\n->Time taken for this iteration: {end_time - start_time} seconds")
 
             # Small sleep to yield control
-            await asyncio.sleep(0.01)
+            time.sleep(0.01)
 
         except Exception as e:
             error_trace = traceback.format_exc()
@@ -244,10 +244,15 @@ async def generate_responses() -> None:
                 )
                 producer.poll(0)
             batch_states.clear()
-            await asyncio.sleep(0.1)
+            time.sleep(0.1)
 
 
-def fill_batch(batch_states, requests_queue, model_handler, batch_size):
+def fill_batch(
+    batch_states: List[SequenceState],
+    requests_queue: List[Dict[str, Any]],
+    model_handler: ModelHandler,
+    batch_size: int
+) -> None:
     while len(batch_states) < batch_size and requests_queue:
         request = requests_queue.pop(0)
         try:
