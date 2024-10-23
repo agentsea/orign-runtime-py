@@ -6,14 +6,12 @@ from transformers import (
     AutoTokenizer,
     PreTrainedTokenizer,
     PreTrainedTokenizerFast,
-    BatchEncoding,
 )
 import torch
 from torch import Tensor
-import torch.nn.functional as F
 
 
-from ..model_handler import ModelHandler
+from ..model_handler import ModelHandler, PreprocessedInput
 from ..config import Config
 from ..seq import SequenceState
 
@@ -64,9 +62,9 @@ class Qwen2(ModelHandler):
             raise ValueError(f"Failed to load model {self.model_name}")
         print("Initialization complete.")
 
-    def get_supported_modalities(self) -> List[str]:
-        """Qwen2 supports only text modality."""
-        return ["text"]
+        print("\n\n----\nSpecial tokens map:", self.tokenizer.special_tokens_map)
+        print("All special tokens:", self.tokenizer.all_special_tokens)
+        print("All special token IDs:", self.tokenizer.all_special_ids, "\n\n----\n")
 
     def load_model(self) -> None:
         print("Loading model and tokenizer...")
@@ -100,50 +98,27 @@ class Qwen2(ModelHandler):
         print("Model and tokenizer loading complete.")
 
 
-    def preprocess_inputs(self, prompt_text: str) -> BatchEncoding:
+    def preprocess_inputs(self, messages: List[Dict[str, str]], **kwargs) -> 'PreprocessedInput':
         """
-        Tokenizes the prompt text and returns the model inputs.
+        Preprocesses the input messages and returns a PreprocessedInput object.
         """
-        # Tokenize and prepare inputs for the model
-        inputs = self.tokenizer(
-            prompt_text, return_tensors="pt", truncation=True
+        # Use the tokenizer to format the prompt
+        prompt_text = self.tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
         )
-        print(f"Tokenized inputs: {inputs}")
+        print(f"Formatted prompt text:\n{prompt_text}\n")
 
-        # Move inputs to device
+        # Tokenize the prompt_text
+        inputs = self.tokenizer(prompt_text, return_tensors="pt")
         inputs = inputs.to(self.device)
-        print(f"Inputs moved to device {self.device}")
-        return inputs
-    
-    def process_inputs(
-        self, messages: List[Dict[str, str]]
-    ) -> BatchEncoding:
-        print("Processing inputs...")
-        print(f"Messages: {messages}")
-        supported_modalities = self.get_supported_modalities()
-        print(f"Supported modalities: {supported_modalities}")
 
-        if not messages:
-            raise ValueError("Messages are required for Qwen2.")
-
-        # Apply the chat template with generation prompt
-        formatted_input = self.tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True  # Ensure generation prompt is added
+        # Return an instance of PreprocessedInput
+        return PreprocessedInput(
+            inputs=inputs,
+            prompt_length=inputs["input_ids"].shape[1],
+            prompt_text=prompt_text,
         )
-        print(f"Formatted input: {formatted_input}")
-
-        # Tokenize without suppressing special tokens
-        inputs = self.tokenizer(
-            formatted_input,
-            return_tensors="pt",
-            truncation=True
-            # Do not set add_special_tokens=False here
-        )
-        print(f"Tokenized inputs: {inputs}")
-
-        return inputs
+        
     
     def prepare_inputs_for_generation(self, seq_state: SequenceState) -> Dict[str, Any]:
         if seq_state.past_key_values is None:
@@ -196,26 +171,6 @@ class Qwen2(ModelHandler):
 
         return combined_inputs
     
-    def update_sequence_states(
-        batch_sequences: List[SequenceState],
-        next_tokens: torch.Tensor,
-        new_past_key_values: List[Tuple[Tuple[torch.Tensor, torch.Tensor], ...]],
-    ):
-        for seq_state, token, past_key_values in zip(
-            batch_sequences, next_tokens, new_past_key_values
-        ):
-            # Move token to the appropriate device and dtype
-            token = token.to(device=seq_state.device, dtype=seq_state.generated_tokens.dtype)
-
-            # Update generated_tokens and attention_mask
-            seq_state.generated_tokens = torch.cat([seq_state.generated_tokens, token], dim=1)
-            seq_state.attention_mask = torch.cat(
-                [seq_state.attention_mask, torch.ones_like(token, device=seq_state.device)], dim=1
-            )
-
-            # Update past_key_values
-            seq_state.past_key_values = past_key_values
-
     def update_sequence_state(
         self,
         seq_state: SequenceState,
@@ -250,6 +205,7 @@ class Qwen2(ModelHandler):
         self,
         inputs: Dict[str, Tensor],
         past_key_values: Optional[Any] = None,
+        top_k: Optional[List[int]] = None,
         **kwargs
     ) -> Tuple[Tensor, Any]:
         print("\nGenerating next logits...")
@@ -276,6 +232,13 @@ class Qwen2(ModelHandler):
         next_logits = outputs.logits[:, -1, :]
         print(f"Next logits shape: {next_logits.shape}")
 
+        # Apply top_k filtering
+        if top_k is not None:
+            print(f"Applying top_k filtering with top_k list: {top_k}")
+            next_logits = self.top_k_filtering(next_logits, top_k)
+
+        print(f"Next logits after top_k filtering: {next_logits.shape}")
+
         # Retrieve new past_key_values
         new_past_key_values = outputs.past_key_values
         if new_past_key_values is not None:
@@ -298,16 +261,6 @@ class Qwen2(ModelHandler):
 
         print(f"Logits after filtering: {filtered_logits}")
         return filtered_logits
-
-    def convert_messages_to_prompt(self, messages: List[Dict[str, str]]) -> str:
-        """
-        Converts a list of messages into a single prompt string using the tokenizer's chat template.
-        """
-        formatted_input = self.tokenizer.apply_chat_template(
-            messages, tokenize=False, add_special_tokens=False
-        )
-        print(f"Formatted input: {formatted_input}")
-        return formatted_input
     
     def combine_past_key_values(
         self, past_key_values_list: List[Optional[Tuple[Tuple[Tensor, Tensor], ...]]]
@@ -347,13 +300,19 @@ class Qwen2(ModelHandler):
             split_past_key_values.append(tuple(single_sequence_pkv))
 
         return split_past_key_values
-        
+            
     def decode_tokens(self, tokens: Tensor) -> str:
         print(f"Decoding tokens: {tokens}")
         if self.tokenizer:
-            decoded = self.tokenizer.decode(tokens, skip_special_tokens=True, clean_up_tokenization_spaces=True)
-            print(f"Decoded text: {decoded.strip()}")
-            return decoded.strip()
+            decoded = self.tokenizer.decode(
+                tokens,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=True
+            )
+            decoded_text = decoded.strip()
+            print(f"\n\nDecoded text with skip_special_tokens=True:\n{decoded_text}\n")
+            print(f"Decoded text: {decoded_text}")
+            return decoded_text
         else:
             raise ValueError("Tokenizer is not loaded.")
 

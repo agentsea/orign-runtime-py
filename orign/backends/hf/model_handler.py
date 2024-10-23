@@ -1,12 +1,21 @@
 # model_handler.py
 from abc import ABC, abstractmethod
-from typing import  Dict, Any, List, Tuple, Optional
+from typing import  Dict, List, Tuple, Optional
+from dataclasses import dataclass
 
 from transformers import (
     BatchEncoding,
 )
 from torch import Tensor
 from .seq import SequenceState
+
+
+@dataclass
+class PreprocessedInput:
+    inputs: BatchEncoding
+    prompt_length: int
+    prompt_text: str
+
 
 class ModelHandler(ABC):
     """An abstract base class for model handlers"""
@@ -29,18 +38,9 @@ class ModelHandler(ABC):
         Tokenizes the prompt text and returns the model inputs.
         """
         pass
-    
-    @abstractmethod
-    def convert_messages_to_prompt(self, messages: List[Dict[str, str]]) -> str:
-        """
-        Converts a list of messages into a single prompt string using the tokenizer's chat template.
-        """
-        pass
 
     @abstractmethod
-    def process_inputs(
-        self, messages: List[Dict[str, str]]
-    ) -> Any:
+    def preprocess_inputs(self, messages: List[Dict[str, str]], **kwargs) -> 'PreprocessedInput':
         pass
 
     @abstractmethod
