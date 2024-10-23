@@ -24,9 +24,10 @@ class SequenceState:
         self.max_length: int = max_length
         self.top_k = top_k
         self.is_finished: bool = False
-        self.position_ids: Optional[torch.Tensor] = None 
+        self.device = device
+        self.attention_mask = inputs['attention_mask'].to(device)
+        # Initialize position_ids
+        self.position_ids: torch.Tensor = (self.attention_mask.cumsum(dim=1) - 1).clamp(min=0).to(device)
         self.past_key_values = None
         self.prompt_length: int = generated_tokens.shape[1]
         self.prompt_text: str = prompt_text
-        self.device = device
-        self.attention_mask = torch.ones_like(self.generated_tokens, device=self.device)
