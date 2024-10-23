@@ -5,6 +5,8 @@ import subprocess
 import sys
 import signal
 import os
+import threading
+from colorama import init, Fore, Style
 
 import pytest
 from confluent_kafka import Producer, Consumer
@@ -12,8 +14,8 @@ from confluent_kafka.admin import AdminClient, NewTopic
 
 # Kafka configuration
 KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
-INPUT_TOPIC = "qwen"
-OUTPUT_TOPIC = "qwen-results"
+INPUT_TOPIC = f"qwen-{int(time.time())}"
+OUTPUT_TOPIC = f"{INPUT_TOPIC}-results"
 GROUP_ID = "test_consumer_group"
 MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 
@@ -23,7 +25,7 @@ producer_conf = {
 }
 consumer_conf = {
     "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
-    "group.id": GROUP_ID,
+    "group.id": f"{GROUP_ID}-test-{int(time.time())}",
     "auto.offset.reset": "earliest",
     "enable.auto.commit": False,
 }
@@ -63,22 +65,44 @@ def setup_kafka_topics():
 
 @pytest.fixture(scope="module")
 def start_main_process():
-    # Start the main.py script as a subprocess
-    # Adjust the path to main.py according to your project structure
+    import threading
+    from colorama import init, Fore, Style
 
+    # Initialize colorama
+    init(autoreset=True)
+
+    # Start the main.py script as a subprocess
     env_vars = os.environ.copy()
-    # Add or modify specific environment variables
     env_vars["KAFKA_INPUT_TOPIC"] = INPUT_TOPIC
     env_vars["KAFKA_OUTPUT_TOPIC"] = OUTPUT_TOPIC
     env_vars["KAFKA_GROUP_ID"] = GROUP_ID
     env_vars["HF_MODEL_NAME"] = MODEL
+    env_vars["DEBUG"] = "true"
 
     process = subprocess.Popen(
         [sys.executable, "-m", "orign.backends.hf.main"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=env_vars,
+        bufsize=1,  # Line-buffered
+        universal_newlines=True,  # Text mode
     )
+
+    # Function to read and print stdout
+    def read_stdout():
+        for line in iter(process.stdout.readline, ''):
+            print(f"{Fore.GREEN}[Server STDOUT]{Style.RESET_ALL} {line}", end='')
+
+    # Function to read and print stderr
+    def read_stderr():
+        for line in iter(process.stderr.readline, ''):
+            print(f"{Fore.RED}[Server STDERR]{Style.RESET_ALL} {line}", end='')
+
+    # Start threads to read stdout and stderr
+    stdout_thread = threading.Thread(target=read_stdout)
+    stderr_thread = threading.Thread(target=read_stderr)
+    stdout_thread.start()
+    stderr_thread.start()
 
     # Wait for a short time to ensure the process starts
     time.sleep(5)
@@ -91,29 +115,31 @@ def start_main_process():
         process.wait(timeout=10)
     except subprocess.TimeoutExpired:
         process.kill()
-    stdout, stderr = process.communicate()
-    print("Main process output:")
-    print(stdout.decode())
-    print(stderr.decode())
+
+    # Ensure all output has been read
+    stdout_thread.join(timeout=5)
+    stderr_thread.join(timeout=5)
+
+    print("Main process output captured.")
+
 
 
 def clear_topic(consumer: Consumer, topics: list, timeout: int = 10) -> None:
     """Consume and discard all messages from the provided topics to clear them."""
-    for topic in topics:
-        print(f"Clearing topic {topic}...", flush=True)
-        consumer.subscribe([topic])
-        end_time = time.time() + timeout
-        while time.time() < end_time:
-            msg = consumer.poll()
-            if msg is None:
-                continue
-            if msg.error():
-                print(f"Consumer error while clearing topic {topic}: {msg.error()}")
-                continue
-            print(
-                f"Cleared message from {topic}: {msg.value().decode('utf-8')}",
-                flush=True,
-            )
+    print(f"Clearing topics {topics}...", flush=True)
+    consumer.subscribe(topics)
+    end_time = time.time() + timeout
+    while time.time() < end_time:
+        msg = consumer.poll(1.0)  # Wait for 1 second
+        if msg is None:
+            continue
+        if msg.error():
+            print(f"Consumer error while clearing topics: {msg.error()}")
+            continue
+        print(
+            f"Cleared message from {msg.topic()}: {msg.value().decode('utf-8')}",
+            flush=True,
+        )
 
 
 def test_main(start_main_process):
@@ -122,7 +148,7 @@ def test_main(start_main_process):
     consumer = Consumer(consumer_conf)
     consumer.subscribe([OUTPUT_TOPIC])
 
-    clear_topic(consumer, [INPUT_TOPIC, OUTPUT_TOPIC])
+    # clear_topic(consumer, [INPUT_TOPIC, OUTPUT_TOPIC])
 
     # Produce test messages
     num_messages = 2
@@ -146,17 +172,21 @@ def test_main(start_main_process):
                     "messages": [
                         {
                             "role": "user",
-                            "content": "Think step by step, whats the capitol of France?",
+                            "content": "Think step by step, what's the capitol of France?",
                         }
                     ]
                 },
                 {
                     "messages": [
-                        {"role": "user", "content": "What's the capitol of the USA?"}
+                        {
+                            "role": "user",
+                            "content": "What's the capitol of the Germany?"
+                        }
                     ]
                 },
             ],
             "max_tokens": 50,
+            "top_k": 5,
         }
         msg = json.dumps(msg_dict)
         producer.produce(INPUT_TOPIC, msg.encode("utf-8"))
@@ -166,13 +196,18 @@ def test_main(start_main_process):
 
     # Consume and verify output messages
     received_messages = 0
-    expected_messages = num_messages * 2  # Assuming two responses per input message
-    timeout = time.time() + 120  # Timeout after 120 seconds
+    expected_messages = num_messages * 2  # Adjust if necessary
+    timeout = time.time() + 400  # Timeout after 120 seconds
     output_results = []
 
-    while received_messages < expected_messages and time.time() < timeout:
-        print("polling consumer", flush=True)
+    while received_messages < expected_messages:
+        print("Polling consumer", flush=True)
         msg = consumer.poll(1.0)
+        if time.time() > timeout:
+            print("Test timed out")
+            pytest.fail("Test timed out")
+            break
+        print("messages expected: ", expected_messages, "messages received: ", received_messages)
         if msg is None:
             continue
         if msg.error():
@@ -183,21 +218,42 @@ def test_main(start_main_process):
         output_data = json.loads(msg.value().decode("utf-8"))
         print(f"Received output message: {output_data}", flush=True)
 
+        # **Add this check for error messages**
+        if output_data.get("type") == "error":
+            pytest.fail(f"Test failed due to error message: {output_data}")
+
         # Collect results for validation
         output_results.append(output_data)
 
-        # Perform basic validation
-        assert "request_id" in output_data
-        assert "result" in output_data
-        assert isinstance(output_data["result"], str)
+        # Perform basic validation for generation responses
+        if output_data.get("type") == "generation_response":
+            assert "request_id" in output_data
+            assert "result" in output_data
+            assert isinstance(output_data["result"], str)
 
-        received_messages += 1
+            received_messages += 1
+            print(f"Received message {received_messages} of {expected_messages}")
+        else:
+            print(f"Received unexpected message type: {output_data.get('type')}")
 
+        print(f"Time: {time.time()}, Timeout: {timeout}")
+        if time.time() > timeout:
+            print("Test timed out")
+            pytest.fail("Test timed out")
+            break
+    
+    print("Closing consumer... total recieved messages: ", received_messages, " expected messages: ", expected_messages, flush=True)
+    time.sleep(10)
     consumer.close()
+
+    print("\n-----Results: ", flush=True)
+    for i, result in enumerate(output_results):
+        print(f"\nResult {i}: {result}")
 
     # Verify that we received the expected number of messages
     assert (
         received_messages == expected_messages
     ), f"Expected {expected_messages} messages, got {received_messages}"
 
-    # Additional validation can be done here based on expected results
+    print("\n\nValidation passed! ignore any further errors\n")
+

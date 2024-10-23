@@ -1,163 +1,92 @@
 # model_handler.py
-import requests
-import io
-from typing import Optional, Union, Dict, Any
-import inspect
+from abc import ABC, abstractmethod
+from typing import  Dict, Any, List, Tuple, Optional
 
 from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    AutoProcessor,
-    PreTrainedTokenizer,
-    PreTrainedTokenizerFast,
     BatchEncoding,
 )
-import torch
 from torch import Tensor
+from .seq import SequenceState
 
-from .config import Config
+class ModelHandler(ABC):
+    """An abstract base class for model handlers"""
 
-
-class ModelHandler:
-    def __init__(self, config: Config) -> None:
-        self.config: Config = config
-        self.model_name: str = config.MODEL_NAME
-        self.device: torch.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
-        self.trust_remote_code: bool = config.TRUST_REMOTE_CODE
-        self.torch_dtype: Union[str, torch.dtype] = (
-            getattr(torch, config.TORCH_DTYPE)
-            if config.TORCH_DTYPE != "auto"
-            else "auto"
-        )
-        self.device_map: Union[str, Dict[str, Any], None] = config.DEVICE_MAP
-
-        self.processor: Optional[AutoProcessor] = None
-        self.tokenizer: Optional[
-            Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
-        ] = None
-        self.model: Optional[AutoModelForCausalLM] = None
-
-        self.load_model()
-        self.model_forward_args = self.model.forward.__code__.co_varnames  # type: ignore
-
-        if self.model is not None:
-            forward_params = inspect.signature(self.model.forward).parameters
-            self.supports_images = "pixel_values" in forward_params
-            print(f"Model supports images: {self.supports_images}")
-        else:
-            self.supports_images = False
-
+    @abstractmethod
     def load_model(self) -> None:
-        # Try to load processor if available
-        try:
-            self.processor = AutoProcessor.from_pretrained(
-                self.model_name,
-                trust_remote_code=self.trust_remote_code,
-                torch_dtype=self.torch_dtype,
-                device_map=self.device_map,
-            )
-            print(f"Loaded processor for model {self.model_name}")
-        except Exception:
-            self.processor = None
-            print(f"No processor available for model {self.model_name}")
+        pass
 
-        # Try to load tokenizer
-        try:
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                self.model_name, trust_remote_code=self.trust_remote_code
-            )
-            print(f"Loaded tokenizer for model {self.model_name}")
-        except Exception:
-            self.tokenizer = None
-            print(f"No tokenizer available for model {self.model_name}")
+    @abstractmethod
+    def prepare_inputs_for_generation(
+        self,
+        seq_state: SequenceState
+    ) -> Dict[str, Tensor]:
+        """Prepares model-specific inputs for generation."""
+        pass
 
-        try:
-            # Load the model
-            self.model = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                trust_remote_code=self.trust_remote_code,
-                torch_dtype=self.torch_dtype,
-                device_map=self.device_map,
-            )
-            if self.model is not None:
-                self.model.eval()  # type: ignore
-                self.model.to(self.device)  # type: ignore
-                print(f"Loaded model {self.model_name}")
-            else:
-                raise ValueError(f"Failed to load model {self.model_name}")
-        except Exception as e:
-            print(f"Error loading model: {e}")
-            self.model = None
+    @abstractmethod
+    def preprocess_inputs(self, prompt_text: str) -> BatchEncoding:
+        """
+        Tokenizes the prompt text and returns the model inputs.
+        """
+        pass
+    
+    @abstractmethod
+    def convert_messages_to_prompt(self, messages: List[Dict[str, str]]) -> str:
+        """
+        Converts a list of messages into a single prompt string using the tokenizer's chat template.
+        """
+        pass
 
+    @abstractmethod
     def process_inputs(
-        self, text: Optional[str] = None, image_url: Optional[str] = None
-    ) -> BatchEncoding:
-        print("processing inputs for: ", text, image_url)
+        self, messages: List[Dict[str, str]]
+    ) -> Any:
+        pass
 
-        # Prepare the input in the format required by Qwen2.5 (chat template if needed)
-        messages = [
-            {
-                "role": "system",
-                "content": "You are Qwen, created by Alibaba Cloud. You are a helpful assistant.",
-            },
-            {"role": "user", "content": text if text else ""},
-        ]
-        formatted_input = self.tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
+    @abstractmethod
+    def update_sequence_state(
+        self,
+        seq_state: SequenceState,
+        new_token: Tensor
+    ) -> None:
+        """Updates the sequence state with the new token and any other model-specific states."""
+        pass
 
-        # Tokenize and prepare inputs for the model
-        inputs = self.tokenizer(formatted_input, return_tensors="pt", truncation=True)
+    @abstractmethod
+    def combine_inputs_for_batch(
+        self,
+        model_inputs_list: List[Dict[str, Tensor]]
+    ) -> Dict[str, Tensor]:
+        """Combines individual model inputs into batched inputs."""
+        pass
 
-        # Move inputs to device
-        inputs = inputs.to(self.device)
-        return inputs
-
+    @abstractmethod
     def generate_next_logits(
         self,
-        input_ids: Tensor,
-        attention_mask: Tensor,
-        pixel_values: Optional[Tensor] = None,
-        top_k: int = 4,
-    ) -> Tensor:
-        with torch.no_grad():
-            model_inputs: Dict[str, Tensor] = {
-                "input_ids": input_ids,
-                "attention_mask": attention_mask,
-            }
+        model_inputs: Dict[str, Tensor],
+        past_key_values: Optional[Tuple] = None,
+        top_k: List[int] = None,
+    ) -> Tuple[Tensor, Tuple]:
+        pass
+    
+    @abstractmethod
+    def combine_past_key_values(self, past_key_values_list):
+        pass
+    
+    @abstractmethod
+    def split_past_key_values(self, new_past_key_values):
+        pass
 
-            if pixel_values is not None and self.supports_images:
-                model_inputs["pixel_values"] = pixel_values
-            elif pixel_values is not None and not self.supports_images:
-                print("Model does not accept 'pixel_values' input; ignoring it.")
-
-            if self.model is None:
-                raise ValueError("Model is not loaded.")
-
-            outputs = self.model(**model_inputs)
-            next_token_logits = outputs.logits[:, -1, :]
-
-            if top_k > 0:
-                # Apply top_k filtering
-                top_k = min(top_k, next_token_logits.size(-1))
-                indices_to_remove = (
-                    next_token_logits
-                    < torch.topk(next_token_logits, top_k)[0][:, -1, None]
-                )
-                next_token_logits[indices_to_remove] = float("-inf")
-
-            return next_token_logits
-
+    @abstractmethod
     def decode_tokens(self, tokens: Tensor) -> str:
-        if (
-            self.processor
-            and hasattr(self.processor, "tokenizer")
-            and hasattr(self.processor.tokenizer, "decode")  # type: ignore
-        ):
-            return self.processor.tokenizer.decode(tokens, skip_special_tokens=True)  # type: ignore
-        elif self.tokenizer:
-            return self.tokenizer.decode(tokens, skip_special_tokens=True)
-        else:
-            raise ValueError("No tokenizer available for decoding.")
+        pass
+
+    @classmethod
+    @abstractmethod
+    def supported_modalities(cls) -> List[str]:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def supported_models(cls) -> List[str]:
+        pass

@@ -13,7 +13,7 @@ class Config:
 
     # Model configurations
     MODEL_NAME = os.getenv("HF_MODEL_NAME", "Qwen/Qwen2.5-1.5B-Instruct")
-    TRUST_REMOTE_CODE = os.getenv("TRUST_REMOTE_CODE", "True") == "True"
+    TRUST_REMOTE_CODE = os.getenv("TRUST_REMOTE_CODE", "true").lower() == "true"
     TORCH_DTYPE = os.getenv("TORCH_DTYPE", "auto")
 
     # Fix for DEVICE_MAP to handle string or dict
@@ -29,3 +29,5 @@ class Config:
     # Batch processing
     BATCH_SIZE = int(os.getenv("BATCH_SIZE", "4"))
     MAX_LENGTH = int(os.getenv("MAX_LENGTH", "500"))
+    TOP_K = int(os.getenv("TOP_K", "5"))
+    DEBUG = os.getenv("DEBUG", "false").lower() == "true"
