@@ -3,34 +3,31 @@ import json
 import time
 import subprocess
 import sys
-import signal
 import os
-import threading
-from colorama import init, Fore, Style
-
 import pytest
+
 from confluent_kafka import Producer, Consumer
 from confluent_kafka.admin import AdminClient, NewTopic
 
 # Kafka configuration
-KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
-INPUT_TOPIC = f"qwen-{int(time.time())}"
+QUEUE_BOOTSTRAP_SERVERS = "localhost:9092"
+INPUT_TOPIC = f"vllm-{int(time.time())}"
 OUTPUT_TOPIC = f"{INPUT_TOPIC}-results"
-GROUP_ID = "test_consumer_group"
-MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+GROUP_ID = "test_consumer_group_molmo"
+MODEL = "allenai/Molmo-7B-D-0924"
 
 # Kafka configuration dictionaries
 producer_conf = {
-    "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
+    "bootstrap.servers": QUEUE_BOOTSTRAP_SERVERS,
 }
 consumer_conf = {
-    "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
+    "bootstrap.servers": QUEUE_BOOTSTRAP_SERVERS,
     "group.id": f"{GROUP_ID}-test-{int(time.time())}",
     "auto.offset.reset": "earliest",
     "enable.auto.commit": False,
 }
 admin_conf = {
-    "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
+    "bootstrap.servers": QUEUE_BOOTSTRAP_SERVERS,
 }
 
 
@@ -73,14 +70,14 @@ def start_main_process():
 
     # Start the main.py script as a subprocess
     env_vars = os.environ.copy()
-    env_vars["KAFKA_INPUT_TOPIC"] = INPUT_TOPIC
-    env_vars["KAFKA_OUTPUT_TOPIC"] = OUTPUT_TOPIC
-    env_vars["KAFKA_GROUP_ID"] = GROUP_ID
+    env_vars["QUEUE_INPUT_TOPIC"] = INPUT_TOPIC
+    env_vars["QUEUE_OUTPUT_TOPIC"] = OUTPUT_TOPIC
+    env_vars["QUEUE_GROUP_ID"] = GROUP_ID
     env_vars["HF_MODEL_NAME"] = MODEL
     env_vars["DEBUG"] = "true"
 
     process = subprocess.Popen(
-        [sys.executable, "-m", "orign.backends.hf.main"],
+        [sys.executable, "-m", "orign.server.backends.vllm.main"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=env_vars,
@@ -90,17 +87,27 @@ def start_main_process():
 
     # Function to read and print stdout
     def read_stdout():
-        for line in iter(process.stdout.readline, ''):
-            print(f"{Fore.GREEN}[Server STDOUT]{Style.RESET_ALL} {line}", end='')
+        while True:
+            line = process.stdout.readline()
+            if line:
+                print(f"{Fore.GREEN}[Server STDOUT]{Style.RESET_ALL} {line}", end='')
+            else:
+                if process.poll() is not None:
+                    break
 
     # Function to read and print stderr
     def read_stderr():
-        for line in iter(process.stderr.readline, ''):
-            print(f"{Fore.RED}[Server STDERR]{Style.RESET_ALL} {line}", end='')
+        while True:
+            line = process.stderr.readline()
+            if line:
+                print(f"{Fore.RED}[Server STDERR]{Style.RESET_ALL} {line}", end='')
+            else:
+                if process.poll() is not None:
+                    break
 
     # Start threads to read stdout and stderr
-    stdout_thread = threading.Thread(target=read_stdout)
-    stderr_thread = threading.Thread(target=read_stderr)
+    stdout_thread = threading.Thread(target=read_stdout, daemon=True)
+    stderr_thread = threading.Thread(target=read_stderr, daemon=True)
     stdout_thread.start()
     stderr_thread.start()
 
@@ -110,7 +117,7 @@ def start_main_process():
     yield process
 
     # Terminate the process after tests
-    process.send_signal(signal.SIGINT)
+    process.terminate()
     try:
         process.wait(timeout=10)
     except subprocess.TimeoutExpired:
@@ -121,7 +128,6 @@ def start_main_process():
     stderr_thread.join(timeout=5)
 
     print("Main process output captured.")
-
 
 
 def clear_topic(consumer: Consumer, topics: list, timeout: int = 10) -> None:
@@ -156,23 +162,28 @@ def test_main(start_main_process):
         msg_dict = {
             "model": MODEL,
             "batch": [
-                # {
-                #     "role": "user",
-                #     "content": [
-                #         {"type": "text", "text": "What’s in this image?"},
-                #         {
-                #             "type": "image_url",
-                #             "image_url": {
-                #                 "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
-                #             },
-                #         },
-                #     ],
-                # },
                 {
                     "messages": [
                         {
                             "role": "user",
-                            "content": "Think step by step, what's the capitol of France?",
+                            "content": "What’s in this image?",
+                        },
+                        {
+                            "role": "user",
+                            "content": {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
+                                },
+                            },
+                        },
+                    ]
+                },
+                {
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": "Think step by step, what's the capital of France?",
                         }
                     ]
                 },
@@ -180,13 +191,18 @@ def test_main(start_main_process):
                     "messages": [
                         {
                             "role": "user",
-                            "content": "What's the capitol of the Germany?"
+                            "content": "What's the capital of Germany?"
                         }
                     ]
                 },
             ],
             "max_tokens": 50,
-            "top_k": 5,
+            "sampling_params": {
+                "n": 4,
+                "top_k": 5,
+                "logprobs": 5,
+            },
+            "request_id": str(i),
         }
         msg = json.dumps(msg_dict)
         producer.produce(INPUT_TOPIC, msg.encode("utf-8"))
@@ -207,6 +223,7 @@ def test_main(start_main_process):
             print("Test timed out")
             pytest.fail("Test timed out")
             break
+
         print("messages expected: ", expected_messages, "messages received: ", received_messages)
         if msg is None:
             continue
@@ -214,22 +231,21 @@ def test_main(start_main_process):
             print(f"Consumer error: {msg.error()}")
             continue
 
-        print("Received raw message: ", msg.value(), flush=True)
+        # print("Received raw message: ", msg.value(), flush=True)
         output_data = json.loads(msg.value().decode("utf-8"))
         print(f"Received output message: {output_data}", flush=True)
 
         # **Add this check for error messages**
-        if output_data.get("type") == "error":
+        if output_data.get("type") == "ErrorResponse":
             pytest.fail(f"Test failed due to error message: {output_data}")
 
         # Collect results for validation
         output_results.append(output_data)
 
         # Perform basic validation for generation responses
-        if output_data.get("type") == "generation_response":
+        if output_data.get("type") == "ChatResponse":
             assert "request_id" in output_data
-            assert "result" in output_data
-            assert isinstance(output_data["result"], str)
+            assert "choices" in output_data
 
             received_messages += 1
             print(f"Received message {received_messages} of {expected_messages}")

@@ -1,5 +1,6 @@
 # qwen2.py
 from typing import Optional, Union, Dict, Any, List, Tuple
+import json
 
 from transformers import (
     AutoModelForCausalLM,
@@ -9,11 +10,12 @@ from transformers import (
 )
 import torch
 from torch import Tensor
-
+from confluent_kafka import Producer
 
 from ..model_handler import ModelHandler, PreprocessedInput
 from ..config import Config
 from ..seq import SequenceState
+from ..util import delivery_report
 
 class Qwen2(ModelHandler):
     """A model handler for Qwen2"""
@@ -174,32 +176,59 @@ class Qwen2(ModelHandler):
     def update_sequence_state(
         self,
         seq_state: SequenceState,
-        new_token: torch.Tensor
+        token: Tensor,
+        new_past_key_values: Any,
+        producer: Producer
     ) -> None:
-        """Update the sequence state with the new token and past key values."""
-        # Ensure new_token has shape [batch_size, 1]
-        if new_token.dim() == 1:
-            new_token = new_token.unsqueeze(-1)  # Adds a dimension at the end
-        elif new_token.dim() == 0:
-            new_token = new_token.unsqueeze(0).unsqueeze(0)  # From [] to [1, 1]
-        
-        # Concatenate the new token to the generated tokens
-        seq_state.generated_tokens = torch.cat(
-            [seq_state.generated_tokens, new_token],
-            dim=1
-        )
-        # Update attention_mask
-        new_attention_mask = torch.ones_like(new_token, device=seq_state.device)
-        seq_state.attention_mask = torch.cat(
-            [seq_state.attention_mask, new_attention_mask],
-            dim=1
-        )
-        # Update position_ids
+        # token shape: [1, 1], ensure it's correct
+        if token.dim() == 1:
+            token = token.unsqueeze(0)  # Ensure batch dimension
+
+        # Update generated_tokens
+        seq_state.generated_tokens = torch.cat([seq_state.generated_tokens, token], dim=1)  # Concatenate along seq_len
+
+        # Update attention_mask and position_ids
+        new_attention_mask = torch.ones_like(token, dtype=seq_state.attention_mask.dtype)
         new_position_id = seq_state.position_ids[:, -1:] + 1
-        seq_state.position_ids = torch.cat(
-            [seq_state.position_ids, new_position_id],
-            dim=1
-        )
+        seq_state.attention_mask = torch.cat([seq_state.attention_mask, new_attention_mask], dim=1)
+        seq_state.position_ids = torch.cat([seq_state.position_ids, new_position_id], dim=1)
+
+        # Update past_key_values
+        seq_state.past_key_values = new_past_key_values
+
+        # Check for end-of-sequence token or max length
+        eos_token_id = self.tokenizer.eos_token_id
+        if (
+            token.item() == eos_token_id
+            or seq_state.generated_tokens.shape[1] >= seq_state.max_length
+        ):
+            print(f"Sequence finished for request_id: {seq_state.request_id}")
+            # Compute the correct index to slice from
+            prompt_length = seq_state.prompt_length
+
+            # Exclude any tokens corresponding to special tokens or the 'system' message
+            response_token_ids = seq_state.generated_tokens[:, prompt_length:]
+            output_text = self.decode_tokens(
+                response_token_ids[0]
+            )
+            print(f"\nDecoded output text for request_id {seq_state.request_id}: {output_text}")
+            message_value = json.dumps(
+                {
+                    "type": "generation_response",
+                    "request_id": seq_state.request_id,
+                    "result": output_text,
+                }
+            ).encode("utf-8")
+            print(f"Sending result for request_id {seq_state.request_id}")
+            producer.produce(
+                topic=self.config.OUTPUT_TOPIC,
+                value=message_value,
+                callback=delivery_report,
+            )
+            # Poll to trigger delivery report callbacks
+            producer.poll(0)
+            seq_state.is_finished = True
+
 
     def generate_next_logits(
         self,

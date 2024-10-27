@@ -16,6 +16,7 @@ from .model_handler import ModelHandler
 from .model_factory import get_model_handler
 from .config import Config
 from .seq import SequenceState
+from .util import delivery_report
 
 print("Starting main.py")
 
@@ -51,13 +52,6 @@ requests_queue: Queue = Queue()
 print(f"Batch size set to: {batch_size}")
 
 # State for each sequence in the batch
-
-def delivery_report(err, msg):
-    """Callback function for producer to report message delivery."""
-    if err is not None:
-        print(f"Message delivery failed: {err}")
-    else:
-        print(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
 
 def generate_responses() -> None:
@@ -102,7 +96,7 @@ def generate_responses() -> None:
                 next_tokens = torch.argmax(next_logits, dim=-1, keepdim=True)  # Shape: [batch_size, 1]
 
                 for seq_state, token, past_key_values in zip(initial_sequences, next_tokens, new_past_key_values_list):
-                    update_sequence_state(seq_state, token, past_key_values, model_handler)
+                    model_handler.update_sequence_state(seq_state, token, past_key_values, producer)
 
             # Process subsequent sequences
             if subsequent_sequences:
@@ -136,7 +130,7 @@ def generate_responses() -> None:
                     next_tokens = torch.argmax(next_logits, dim=-1, keepdim=True)  # Shape: [batch_size, 1]
 
                     for seq_state, token, past_key_values in zip(sequences, next_tokens, new_past_key_values_list):
-                        update_sequence_state(seq_state, token, past_key_values, model_handler)
+                        model_handler.update_sequence_state(seq_state, token, past_key_values, producer)
 
             # Remove finished sequences
             batch_states = [seq_state for seq_state in batch_states if not seq_state.is_finished]
@@ -198,58 +192,6 @@ def generate_responses() -> None:
                 producer.poll(0)
             batch_states.clear()
             time.sleep(0.1)
-
-
-def update_sequence_state(seq_state, token, new_past_key_values, model_handler):
-    # token shape: [1, 1], ensure it's correct
-    if token.dim() == 1:
-        token = token.unsqueeze(0)  # Ensure batch dimension
-
-    # Update generated_tokens
-    seq_state.generated_tokens = torch.cat([seq_state.generated_tokens, token], dim=1)  # Concatenate along seq_len
-
-    # Update attention_mask and position_ids
-    new_attention_mask = torch.ones_like(token, dtype=seq_state.attention_mask.dtype)
-    new_position_id = seq_state.position_ids[:, -1:] + 1
-    seq_state.attention_mask = torch.cat([seq_state.attention_mask, new_attention_mask], dim=1)
-    seq_state.position_ids = torch.cat([seq_state.position_ids, new_position_id], dim=1)
-
-    # Update past_key_values
-    seq_state.past_key_values = new_past_key_values
-
-    # Check for end-of-sequence token or max length
-    eos_token_id = model_handler.tokenizer.eos_token_id
-    if (
-        token.item() == eos_token_id
-        or seq_state.generated_tokens.shape[1] >= seq_state.max_length
-    ):
-        print(f"Sequence finished for request_id: {seq_state.request_id}")
-        # Compute the correct index to slice from
-        prompt_length = seq_state.prompt_length
-
-        # Exclude any tokens corresponding to special tokens or the 'system' message
-        response_token_ids = seq_state.generated_tokens[:, prompt_length:]
-        output_text = model_handler.decode_tokens(
-            response_token_ids[0]
-        )
-        print(f"\nDecoded output text for request_id {seq_state.request_id}: {output_text}")
-        message_value = json.dumps(
-            {
-                "type": "generation_response",
-                "request_id": seq_state.request_id,
-                "result": output_text,
-            }
-        ).encode("utf-8")
-        print(f"Sending result for request_id {seq_state.request_id}")
-        producer.produce(
-            topic=config.OUTPUT_TOPIC,
-            value=message_value,
-            callback=delivery_report,
-        )
-        # Poll to trigger delivery report callbacks
-        producer.poll(0)
-        seq_state.is_finished = True
-
 
 def fill_batch(
     batch_states: List[SequenceState],
@@ -408,7 +350,7 @@ def main() -> None:
 
 try:
     print("Running main()")
-    asyncio.run(main())
+    main()
 finally:
     print("Closing consumer and producer")
     # Clean up resources

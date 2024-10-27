@@ -1,6 +1,6 @@
 # model_handler.py
 from abc import ABC, abstractmethod
-from typing import  Dict, List, Tuple, Optional
+from typing import  Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 
 from transformers import (
@@ -8,6 +8,7 @@ from transformers import (
 )
 from torch import Tensor
 from .seq import SequenceState
+from confluent_kafka import Producer
 
 
 @dataclass
@@ -45,11 +46,12 @@ class ModelHandler(ABC):
 
     @abstractmethod
     def update_sequence_state(
-        self,
-        seq_state: SequenceState,
-        new_token: Tensor
-    ) -> None:
-        """Updates the sequence state with the new token and any other model-specific states."""
+            self,
+            seq_state: SequenceState,
+            token: Tensor,
+            new_past_key_values: Any,
+            producer: Producer
+        ) -> None:
         pass
 
     @abstractmethod

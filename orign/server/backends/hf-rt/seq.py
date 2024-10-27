@@ -28,3 +28,9 @@ class SequenceState:
         self.past_key_values = None
         self.attention_mask = inputs['attention_mask'].to(device)
         self.position_ids: torch.Tensor = (self.attention_mask.cumsum(dim=1) - 1).clamp(min=0).to(device)
+
+    def get_generated_text(self, tokenizer):
+        # Extract tokens after the prompt
+        response_ids = self.generated_tokens[:, self.prompt_length:]
+        response_text = tokenizer.decode(response_ids[0], skip_special_tokens=True)
+        return response_text
