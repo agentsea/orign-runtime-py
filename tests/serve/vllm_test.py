@@ -15,6 +15,7 @@ INPUT_TOPIC = f"vllm-{int(time.time())}"
 OUTPUT_TOPIC = f"{INPUT_TOPIC}-results"
 GROUP_ID = "test_consumer_group_molmo"
 MODEL = "allenai/Molmo-7B-D-0924"
+MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 
 # Kafka configuration dictionaries
 producer_conf = {

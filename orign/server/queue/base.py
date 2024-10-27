@@ -77,7 +77,8 @@ class AsyncMessageProducer(ABC):
         self,
         value: BaseModel,
         callback: Optional[Callable[[Any, Optional[Exception]], None]] = None,
-        topic: Optional[str] = None
+        topic: Optional[str] = None,
+        key: Optional[str] = None
     ) -> None:
         """Produces a message asynchronously."""
         pass

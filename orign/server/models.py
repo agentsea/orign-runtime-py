@@ -77,6 +77,7 @@ class ChatRequest(BaseModel):
     max_tokens: int = 512
     sampling_params: SamplingParams
     stream: bool = False
+    user_id: Optional[str] = None
     
 
 class Choice(BaseModel):

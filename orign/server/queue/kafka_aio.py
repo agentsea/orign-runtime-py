@@ -112,7 +112,8 @@ class AsyncKafkaMessageProducer(AsyncMessageProducer):
         self,
         value: BaseModel,
         callback: Optional[Callable[[RecordMetadata, Optional[Exception]], None]] = None,
-        topic: Optional[str] = None
+        topic: Optional[str] = None,
+        key: Optional[str] = None
     ) -> None:
         if not self.producer:
             raise RuntimeError("Producer is not started. Call start() before producing messages.")
@@ -120,7 +121,7 @@ class AsyncKafkaMessageProducer(AsyncMessageProducer):
         topic = topic or self.topic
         serialized_value = value.model_dump_json().encode('utf-8')  # Using .json() for serialization
         try:
-            future = await self.producer.send(topic, serialized_value)
+            future = await self.producer.send(topic, serialized_value, key=key)
             # Await the future to ensure delivery
             record_metadata = await future
             if callback:
