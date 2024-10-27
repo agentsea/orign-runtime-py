@@ -33,9 +33,8 @@ class vLLMBackend(ModelBackend):
         self.engine = AsyncLLMEngine.from_engine_args(engine_args)
         print("Initialized AsyncLLMEngine")
 
-    async def process_message(self, id: str, msg: ChatRequest):
+    async def process_message(self, msg: ChatRequest):
         """Process a single message using the vLLM engine."""
-        print(f"Received request with ID {id}: {msg}")
         if not msg.request_id:
             raise ValueError("No request_id found in message")
 
@@ -128,7 +127,7 @@ class vLLMBackend(ModelBackend):
                 )
                 await self.producer.produce(error_response)
 
-    async def process_single_prompt(self, prompt, sampling_params, request_id, stream):
+    async def process_single_prompt(self, prompt: dict, sampling_params: VLLMSamplingParams, request_id: str, stream: bool):
         """Process a single prompt and handle streaming or non-streaming output."""
         
         print(f"Processing prompt for request_id {request_id}")

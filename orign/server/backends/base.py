@@ -1,17 +1,16 @@
 # base.py
 from abc import ABC, abstractmethod
-from typing import TypeVar, List, Type
+from typing import TypeVar, List, Type, Generic
 import traceback
 
 from pydantic import BaseModel
 
 from ..models import ErrorResponse
-from ..queue.base import MessageProducer, MessageConsumer
 from ..queue.factory import get_message_consumer, get_message_producer
 S = TypeVar("S", bound=BaseModel)
 
 
-class ModelBackend(ABC):
+class ModelBackend(ABC, Generic[S]):
     def __init__(self):
         self.config = None
         self.engine = None

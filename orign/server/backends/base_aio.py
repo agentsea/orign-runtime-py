@@ -1,6 +1,6 @@
 # base_aio.py
 from abc import ABC, abstractmethod
-from typing import TypeVar, List, Type
+from typing import TypeVar, List, Type, Generic
 import traceback
 import asyncio
 
@@ -14,7 +14,7 @@ from ..queue.factory import get_message_consumer_async, get_message_producer_asy
 S = TypeVar("S", bound=BaseModel)
 
 
-class ModelBackend(ABC):
+class ModelBackend(ABC, Generic[S]):
     def __init__(self):
         self.config = None
         self.engine = None
