@@ -38,7 +38,7 @@ class AsyncKafkaMessageConsumer(AsyncMessageConsumer):
         listener = ConsumerRebalanceListener(self)
         await self.consumer.start()
         # Corrected: Subscribe without 'await'
-        self.consumer.subscribe([self.config.INPUT_TOPIC], listener=listener)
+        self.consumer.subscribe(self.config.INPUT_TOPICS, listener=listener)
         print(f"Initialized AsyncKafkaMessageConsumer with config: {consumer_conf}")
 
     async def get_messages(self, timeout: float = 1.0) -> Optional[Dict[TopicPartition, List[Any]]]:

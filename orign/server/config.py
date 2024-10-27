@@ -3,17 +3,21 @@ import json
 
 
 class Config:
+    @staticmethod
+    def _get_required_env(key: str) -> str:
+        value = os.getenv(key)
+        if value is None:
+            raise ValueError(f"Required environment variable {key} is not set")
+        return value
     # QUEUE configurations
-    BOOTSTRAP_SERVERS = os.getenv("QUEUE_BOOTSTRAP_SERVERS", "localhost:9092").split(
-        ","
-    )
-    QUEUE_TYPE = os.getenv("QUEUE_TYPE", "kafka")
-    INPUT_TOPIC = os.getenv("QUEUE_INPUT_TOPIC", "input_topic")
-    OUTPUT_TOPIC = os.getenv("QUEUE_OUTPUT_TOPIC", "output_topic")
-    GROUP_ID = os.getenv("QUEUE_GROUP_ID", "my_consumer_group")
+    BOOTSTRAP_SERVERS = _get_required_env("QUEUE_BOOTSTRAP_SERVERS").split(",")
+    QUEUE_TYPE = _get_required_env("QUEUE_TYPE")
+    INPUT_TOPICS = _get_required_env("QUEUE_INPUT_TOPICS").split(",")
+    OUTPUT_TOPIC = _get_required_env("QUEUE_OUTPUT_TOPIC")
+    GROUP_ID = _get_required_env("QUEUE_GROUP_ID")
 
     # Model configurations
-    MODEL_NAME = os.getenv("HF_MODEL_NAME", "Qwen/Qwen2.5-1.5B-Instruct")
+    MODEL_NAME = _get_required_env("HF_MODEL_NAME")
     TRUST_REMOTE_CODE = os.getenv("TRUST_REMOTE_CODE", "true").lower() == "true"
     TORCH_DTYPE = os.getenv("TORCH_DTYPE", "auto")
     TENSOR_PARALLEL_SIZE = int(os.getenv("TENSOR_PARALLEL_SIZE", "1"))

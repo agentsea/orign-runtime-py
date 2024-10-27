@@ -1,11 +1,11 @@
 steps:
   # Set up QEMU for multi-architecture support
-  - name: "gcr.io/cloud-builders/docker"
-    entrypoint: "bash"
-    args:
-      - "-c"
-      - |
-        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+  # - name: "gcr.io/cloud-builders/docker"
+  #   entrypoint: "bash"
+  #   args:
+  #     - "-c"
+  #     - |
+  #       docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
   # Set up Docker Buildx
   - name: "gcr.io/cloud-builders/docker"

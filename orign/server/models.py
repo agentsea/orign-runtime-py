@@ -56,6 +56,13 @@ class SamplingParams(BaseModel):
     spaces_between_special_tokens: bool = True
     truncate_prompt_tokens: Optional[int] = None
 
+class Usage(BaseModel):
+    """Usage for chat requests"""
+
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
 class ChatRequest(BaseModel):
     """Chat request"""
 
@@ -63,12 +70,14 @@ class ChatRequest(BaseModel):
     request_id: Optional[str] = None
     model: Optional[str] = None
     kind: Optional[str] = None
+    backend: Optional[str] = None
+    namespace: Optional[str] = None
     prompt: Optional[Prompt] = None
     batch: Optional[List[Prompt]] = None
     max_tokens: int = 512
     sampling_params: SamplingParams
     stream: bool = False
-
+    
 
 class Choice(BaseModel):
     """Individual choice in the token response"""
@@ -87,6 +96,7 @@ class ChatResponse(BaseModel):
     request_id: str
     choices: List[Choice]
     trip_time: Optional[float] = None
+    usage: Optional[Usage] = None
 
 class TokenResponse(BaseModel):
     """Token response"""
@@ -96,6 +106,7 @@ class TokenResponse(BaseModel):
     tokens: List[str]
     token_ids: Optional[List[int]] = None
     logprobs: Optional[List[Dict[Union[int, str], Any]]] = None
+    usage: Optional[Usage] = None
 
 # === OCR Request ===
 
