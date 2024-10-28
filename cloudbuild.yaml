@@ -27,8 +27,8 @@ steps:
           --platform linux/amd64 \
           -t us-docker.pkg.dev/$PROJECT_ID/orign/vllm:latest \
           -f ./orign/server/backends/vllm/Dockerfile \
-          --cache-from type=registry,ref=us-central1-docker.pkg.dev/$PROJECT_ID/orign/vllm:buildcache \
-          --cache-to type=registry,ref=us-central1-docker.pkg.dev/$PROJECT_ID/orign/vllm:buildcache,mode=max \
+          --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/vllm:buildcache \
+          --cache-to type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/vllm:buildcache,mode=max \
           --push \
           .
 
@@ -39,8 +39,8 @@ steps:
     args:
       - "-c"
       - |
-        docker buildx imagetools inspect us-central1-docker.pkg.dev/$PROJECT_ID/orign/vllm:latest
-        docker buildx imagetools inspect us-central1-docker.pkg.dev/$PROJECT_ID/orign/vllm:${SHORT_SHA}
+        docker buildx imagetools inspect us-docker.pkg.dev/$PROJECT_ID/orign/vllm:latest
+        docker buildx imagetools inspect us-docker.pkg.dev/$PROJECT_ID/orign/vllm:${SHORT_SHA}
 
 timeout: "3600s"
 
