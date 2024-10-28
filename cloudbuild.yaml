@@ -32,17 +32,4 @@ steps:
           --push \
           .
 
-  # Verify the multi-arch image
-  - name: "gcr.io/cloud-builders/docker"
-    id: Verify Images
-    entrypoint: "bash"
-    args:
-      - "-c"
-      - |
-        docker buildx imagetools inspect us-docker.pkg.dev/$PROJECT_ID/orign/vllm:latest
-        docker buildx imagetools inspect us-docker.pkg.dev/$PROJECT_ID/orign/vllm:${SHORT_SHA}
-
 timeout: "3600s"
-
-options:
-  machineType: "N1_HIGHCPU_8"
