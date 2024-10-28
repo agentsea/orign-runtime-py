@@ -97,7 +97,7 @@ class vLLMBackend(ModelBackend):
                         request_id=msg.request_id,
                         error=error_message
                     )
-                    await self.producer.produce(error_response)
+                    await self.producer.produce(error_response, topic=msg.output_topic, partition=msg.output_partition)
                     return
 
             # Add the prompt and multi_modal_data to the list
@@ -136,7 +136,7 @@ class vLLMBackend(ModelBackend):
                     error=str(e),
                     traceback=error_trace
                 )
-                await self.producer.produce(error_response)
+                await self.producer.produce(error_response, topic=msg.output_topic, partition=msg.output_partition)
 
     async def process_single_prompt(self, 
                                     prompt: dict, 

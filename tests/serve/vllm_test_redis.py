@@ -11,11 +11,11 @@ import redis
 # Redis configuration
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
-INPUT_STREAM = "Qwen/Qwen2.5-0.5B-Instruct"
+INPUT_STREAM = "Qwen/Qwen2.5-1.5B-Instruct"
 USER_EMAIL = "tom@myspace.com"
-OUTPUT_STREAM = f"results:{USER_EMAIL}:{INPUT_STREAM}"
+OUTPUT_STREAM = f"chat_results:{USER_EMAIL}:{INPUT_STREAM}"
 GROUP_NAME = "test_consumer_group_vllm"
-MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
+MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 
 # Redis configuration dictionary
 redis_conf = {
@@ -51,8 +51,79 @@ def setup_redis_streams():
     # r.delete(INPUT_STREAM)
     # r.delete(OUTPUT_STREAM)
 
+@pytest.fixture(scope="module")
+def start_main_process():
+    import threading
+    from colorama import init, Fore, Style
 
-def test_main():
+    # Initialize colorama
+    init(autoreset=True)
+
+    # Start the main.py script as a subprocess
+    env_vars = os.environ.copy()
+    env_vars["QUEUE_TYPE"] = "redis"
+    env_vars["QUEUE_INPUT_TOPICS"] = INPUT_STREAM
+    env_vars["QUEUE_GROUP_ID"] = GROUP_NAME
+    env_vars["HF_MODEL_NAME"] = MODEL
+    env_vars["DEVICE"] = "cuda"
+    env_vars["DEBUG"] = "true"
+    env_vars["VLLM_DISABLE_PROMETHEUS"] = "true"
+    
+    process = subprocess.Popen(
+        [sys.executable, "-m", "orign.server.backends.vllm.main"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env_vars,
+        bufsize=1,  # Line-buffered
+        universal_newlines=True,  # Text mode
+    )
+
+    # Function to read and print stdout
+    def read_stdout():
+        while True:
+            line = process.stdout.readline()
+            if line:
+                print(f"{Fore.GREEN}[Server STDOUT]{Style.RESET_ALL} {line}", end='')
+            else:
+                if process.poll() is not None:
+                    break
+
+    # Function to read and print stderr
+    def read_stderr():
+        while True:
+            line = process.stderr.readline()
+            if line:
+                print(f"{Fore.RED}[Server STDERR]{Style.RESET_ALL} {line}", end='')
+            else:
+                if process.poll() is not None:
+                    break
+
+    # Start threads to read stdout and stderr
+    stdout_thread = threading.Thread(target=read_stdout, daemon=True)
+    stderr_thread = threading.Thread(target=read_stderr, daemon=True)
+    stdout_thread.start()
+    stderr_thread.start()
+
+    # Wait for a short time to ensure the process starts
+    time.sleep(5)
+
+    yield process
+
+    # Terminate the process after tests
+    process.terminate()
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        process.kill()
+
+    # Ensure all output has been read
+    stdout_thread.join(timeout=5)
+    stderr_thread.join(timeout=5)
+
+    print("Main process output captured.")
+
+
+def test_main(start_main_process):
     # Connect to Redis
     r = redis.Redis(**redis_conf)
 
@@ -133,7 +204,9 @@ def test_main():
 
         for stream_name, entries in messages:
             for msg_id, msg_data in entries:
-                output_data = json.loads(msg_data['payload'])
+                payload = msg_data[b'payload'].decode('utf-8')
+                print(f"Received message payload: {payload}", flush=True)
+                output_data = json.loads(payload)
                 print(f"Received output message: {output_data}", flush=True)
 
                 # Check for error messages

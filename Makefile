@@ -22,3 +22,7 @@ test-vllm-redis:
 .PHONY: build-vllm
 build-vllm:
 	docker build --platform=linux/amd64 -f ./orign/server/backends/vllm/Dockerfile -t orign-vllm .
+
+.PHONY: run-redis
+run-redis:
+	docker run -d --name redis -p 6379:6379 redis:latest
