@@ -76,9 +76,9 @@ class AsyncMessageProducer(ABC):
     async def produce(
         self,
         value: BaseModel,
+        topic: str,
         callback: Optional[Callable[[Any, Optional[Exception]], None]] = None,
-        topic: Optional[str] = None,
-        key: Optional[str] = None
+        partition: Optional[int] = None
     ) -> None:
         """Produces a message asynchronously."""
         pass

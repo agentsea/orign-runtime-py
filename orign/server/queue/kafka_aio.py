@@ -93,7 +93,6 @@ class AsyncKafkaMessageProducer(AsyncMessageProducer):
     def __init__(self, config: Config) -> None:
         self.config = config
         self.producer: Optional[AIOKafkaProducer] = None
-        self.topic = config.OUTPUT_TOPIC
 
     async def start(self) -> None:
         producer_conf = {
@@ -111,17 +110,16 @@ class AsyncKafkaMessageProducer(AsyncMessageProducer):
     async def produce(
         self,
         value: BaseModel,
+        topic: str,
         callback: Optional[Callable[[RecordMetadata, Optional[Exception]], None]] = None,
-        topic: Optional[str] = None,
-        key: Optional[str] = None
+        partition: Optional[int] = None
     ) -> None:
         if not self.producer:
             raise RuntimeError("Producer is not started. Call start() before producing messages.")
 
-        topic = topic or self.topic
         serialized_value = value.model_dump_json().encode('utf-8')  # Using .json() for serialization
         try:
-            future = await self.producer.send(topic, serialized_value, key=key)
+            future = await self.producer.send(topic, serialized_value, partition=partition)
             # Await the future to ensure delivery
             record_metadata = await future
             if callback:

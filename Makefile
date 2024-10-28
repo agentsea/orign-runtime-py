@@ -14,3 +14,11 @@ test-qwen:
 .PHONY: test-vllm
 test-vllm:
 	poetry run pytest -s -vvv tests/serve/vllm_test.py
+
+.PHONY: test-vllm-redis
+test-vllm-redis:
+	poetry run pytest -s -vvv tests/serve/vllm_test_redis.py
+
+.PHONY: build-vllm
+build-vllm:
+	docker build --platform=linux/amd64 -f ./orign/server/backends/vllm/Dockerfile -t orign-vllm .

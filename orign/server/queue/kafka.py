@@ -39,16 +39,14 @@ class KafkaMessageProducer(MessageProducer):
             "bootstrap.servers": ",".join(config.BOOTSTRAP_SERVERS),
         }
         self.producer: Producer = Producer(producer_conf)
-        self.topic = config.OUTPUT_TOPIC
         print(f"Initialized KafkaMessageProducer with config: {producer_conf}")
 
     def produce(
         self,
         value: BaseModel,
+        topic: str,
         callback: Optional[Callable[[Any, Message], None]] = None,
-        topic: Optional[str] = None
     ) -> None:
-        topic = topic or self.topic
         serialized_value = value.model_dump_json().encode('utf-8')
         self.producer.produce(topic=topic, value=serialized_value, callback=callback)
         self.producer.poll(0)

@@ -89,12 +89,19 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
         if self.redis:
             await self.redis.aclose()
 
+    async def commit_on_revoke(self, revoked_partitions: List[Any]) -> None:
+        """Redis streams don't use partitions, so we just commit pending messages."""
+        await self.commit()
+
+    async def close(self) -> None:
+        """Alias for stop() to match the abstract interface."""
+        await self.stop()
+
 
 class AsyncRedisMessageProducer(AsyncMessageProducer):
     def __init__(self, config: Config) -> None:
         self.config = config
         self.redis: Optional[redis.Redis] = None
-        self.topic = config.OUTPUT_TOPIC
 
     async def start(self) -> None:
         self.redis = redis.from_url(
@@ -106,14 +113,13 @@ class AsyncRedisMessageProducer(AsyncMessageProducer):
     async def produce(
         self,
         value: BaseModel,
+        topic: str,
         callback: Optional[Callable[[Any, Optional[Exception]], None]] = None,
-        topic: Optional[str] = None,
-        key: Optional[str] = None
+        partition: Optional[int] = None
     ) -> None:
         if not self.redis:
             raise RuntimeError("Producer is not started. Call start() before producing messages.")
 
-        topic = topic or self.topic
         try:
             # Serialize the message
             serialized_value = value.model_dump_json()
@@ -139,3 +145,7 @@ class AsyncRedisMessageProducer(AsyncMessageProducer):
     async def stop(self) -> None:
         if self.redis:
             await self.redis.aclose()
+
+    async def close(self) -> None:
+        """Alias for stop() to match the abstract interface."""
+        await self.stop()

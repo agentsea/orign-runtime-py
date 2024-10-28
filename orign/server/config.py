@@ -15,7 +15,6 @@ class Config:
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
     QUEUE_TYPE = _get_required_env("QUEUE_TYPE").lower()
     INPUT_TOPICS = _get_required_env("QUEUE_INPUT_TOPICS").split(",")
-    OUTPUT_TOPIC = _get_required_env("QUEUE_OUTPUT_TOPIC")
     GROUP_ID = _get_required_env("QUEUE_GROUP_ID")
 
     # Model configurations
@@ -25,14 +24,8 @@ class Config:
     TENSOR_PARALLEL_SIZE = int(os.getenv("TENSOR_PARALLEL_SIZE", "1"))
 
     # Fix for DEVICE_MAP to handle string or dict
-    device_map_raw = os.getenv("DEVICE_MAP", "auto")
-    if device_map_raw == "auto":
-        DEVICE_MAP = "auto"
-    else:
-        try:
-            DEVICE_MAP = json.loads(device_map_raw)
-        except json.JSONDecodeError:
-            DEVICE_MAP = None  # or raise an error if you prefer
+    DEVICE = os.getenv("DEVICE", "auto")
+    ACCEPTS = os.getenv("ACCEPTS", "text").split(",")
 
     # Batch processing
     BATCH_SIZE = int(os.getenv("BATCH_SIZE", "4"))

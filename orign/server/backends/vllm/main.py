@@ -1,9 +1,9 @@
 # main.py
-from typing import List, Type
+from typing import List, Type, Optional
 import traceback
 import asyncio
 
-from vllm import AsyncLLMEngine, EngineArgs, SamplingParams as VLLMSamplingParams
+from vllm import AsyncLLMEngine, AsyncEngineArgs, SamplingParams as VLLMSamplingParams
 from pydantic import BaseModel
 
 from ...config import Config
@@ -13,6 +13,8 @@ from ..base_aio import ModelBackend
 from ...models import ChatRequest, ContentItem, ChatResponse, TokenResponse, ErrorResponse, Choice
 
 class vLLMBackend(ModelBackend):
+    """vLLM backend"""
+    
     def __init__(self):
         super().__init__()
         self.config: Config = Config()
@@ -22,14 +24,16 @@ class vLLMBackend(ModelBackend):
 
     def initialize_engine(self):
         """Initialize the vLLM engine."""
-        engine_args = EngineArgs(
+        engine_args = AsyncEngineArgs(
             model=self.config.MODEL_NAME,
             trust_remote_code=self.config.TRUST_REMOTE_CODE,
             tensor_parallel_size=self.config.TENSOR_PARALLEL_SIZE,
             dtype=self.config.TORCH_DTYPE,
-            limit_mm_per_prompt={"image": self.config.MAX_IMAGES_PER_PROMPT}
+            device=self.config.DEVICE
         )
-        engine_args.disable_log_requests = False
+        if "image" in self.config.ACCEPTS:
+            engine_args.limit_mm_per_prompt = {"image": self.config.MAX_IMAGES_PER_PROMPT}
+
         self.engine = AsyncLLMEngine.from_engine_args(engine_args)
         print("Initialized AsyncLLMEngine")
 
@@ -116,7 +120,14 @@ class vLLMBackend(ModelBackend):
 
         for prompt in prompts:
             try:
-                await self.process_single_prompt(prompt, vllm_sampling_params, msg.request_id, msg.stream)
+                await self.process_single_prompt(
+                    prompt, 
+                    vllm_sampling_params, 
+                    msg.request_id, 
+                    msg.stream, 
+                    msg.output_topic, 
+                    msg.output_partition
+                )
             except Exception as e:
                 error_trace = traceback.format_exc()
                 print(f"Error during generation for request_id { msg.request_id}: {e}\n{error_trace}")
@@ -127,7 +138,14 @@ class vLLMBackend(ModelBackend):
                 )
                 await self.producer.produce(error_response)
 
-    async def process_single_prompt(self, prompt: dict, sampling_params: VLLMSamplingParams, request_id: str, stream: bool):
+    async def process_single_prompt(self, 
+                                    prompt: dict, 
+                                    sampling_params: VLLMSamplingParams, 
+                                    request_id: str, 
+                                    stream: bool, 
+                                    topic: str,
+                                    partition: Optional[int] = None
+                                    ):
         """Process a single prompt and handle streaming or non-streaming output."""
         
         print(f"Processing prompt for request_id {request_id}")
@@ -200,7 +218,7 @@ class vLLMBackend(ModelBackend):
                         choices=[choice],
                         trip_time=None  # You can calculate and assign trip_time if needed
                     )
-                    await self.producer.produce(token_response)
+                    await self.producer.produce(token_response, topic=topic, partition=partition)
             print(f"Completed streaming response for request_id {request_id}")
         else:
             # Non-streaming response
@@ -259,7 +277,7 @@ class vLLMBackend(ModelBackend):
             )
 
             # Send the final response
-            await self.producer.produce(response)
+            await self.producer.produce(response, topic=topic, partition=partition)
             print(f"Sent final response for request_id {request_id}")
 
     def accepts(self) -> ChatRequest:

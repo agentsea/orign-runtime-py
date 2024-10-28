@@ -18,11 +18,14 @@ einops = "^0.8.0"
 aiokafka = "^0.11.0"
 vllm = "^0.6.3.post1"
 redis = "^5.2.0"
+torch = "2.4.0"
+pydantic = "^2.9.2"
 
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
 jupyterlab = "^4.2.5"
+pytest = "^8.3.3"
 
 [build-system]
 requires = ["poetry-core"]

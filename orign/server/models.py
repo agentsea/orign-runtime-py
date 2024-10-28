@@ -75,9 +75,11 @@ class ChatRequest(BaseModel):
     prompt: Optional[Prompt] = None
     batch: Optional[List[Prompt]] = None
     max_tokens: int = 512
-    sampling_params: SamplingParams
+    sampling_params: SamplingParams = SamplingParams()
     stream: bool = False
     user_id: Optional[str] = None
+    output_topic: Optional[str] = None
+    output_partition: Optional[int] = None
     
 
 class Choice(BaseModel):
