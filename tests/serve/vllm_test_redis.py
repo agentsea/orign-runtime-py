@@ -3,9 +3,7 @@ import time
 import subprocess
 import sys
 import os
-import threading
 import pytest
-from colorama import init, Fore, Style
 import redis
 
 # Redis configuration

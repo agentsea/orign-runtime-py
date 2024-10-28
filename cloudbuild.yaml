@@ -25,7 +25,7 @@ steps:
       - |
         docker buildx build \
           --platform linux/amd64 \
-          -t us-central1-docker.pkg.dev/$PROJECT_ID/orign/vllm:latest \
+          -t us-docker.pkg.dev/$PROJECT_ID/orign/vllm:latest \
           -f ./orign/server/backends/vllm/Dockerfile \
           --cache-from type=registry,ref=us-central1-docker.pkg.dev/$PROJECT_ID/orign/vllm:buildcache \
           --cache-to type=registry,ref=us-central1-docker.pkg.dev/$PROJECT_ID/orign/vllm:buildcache,mode=max \
