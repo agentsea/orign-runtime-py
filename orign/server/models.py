@@ -6,31 +6,21 @@ from pydantic import BaseModel
 
 class ImageUrlContent(BaseModel):
     """Image URL content for chat requests"""
-
     url: str
 
 class ContentItem(BaseModel):
     """Content item for chat requests"""
-
     type: str
     text: Optional[str] = None
     image_url: Optional[ImageUrlContent] = None
 
-class BatchItemWithContent(BaseModel):
-    """Batch item with content for chat requests"""
-
-    role: str
-    content: List[ContentItem]
-
 class MessageItem(BaseModel):
     """Message item for chat requests"""
-
     role: str
-    content: Union[str, ContentItem]
+    content: Union[str, List[ContentItem]]  # Updated to allow a list of ContentItem
 
 class Prompt(BaseModel):
     """Prompt for chat requests"""
-
     messages: List[MessageItem]
 
 class SamplingParams(BaseModel):

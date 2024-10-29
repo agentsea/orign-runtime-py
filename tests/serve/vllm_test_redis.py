@@ -5,15 +5,16 @@ import sys
 import os
 import pytest
 import redis
+import time
 
 # Redis configuration
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
-INPUT_STREAM = "Qwen/Qwen2.5-1.5B-Instruct"
+INPUT_STREAM = f"allenai/Molmo-7B-D-0924-{int(time.time())}"
 USER_EMAIL = "tom@myspace.com"
-OUTPUT_STREAM = f"chat_results:{USER_EMAIL}:{INPUT_STREAM}"
+OUTPUT_STREAM = f"chat_results:{USER_EMAIL}:{INPUT_STREAM}-{int(time.time())}"
 GROUP_NAME = "test_consumer_group_vllm"
-MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+MODEL = "allenai/Molmo-7B-D-0924"
 
 # Redis configuration dictionary
 redis_conf = {
@@ -66,6 +67,8 @@ def start_main_process():
     env_vars["DEVICE"] = "cuda"
     env_vars["DEBUG"] = "true"
     env_vars["VLLM_DISABLE_PROMETHEUS"] = "true"
+    env_vars["MAX_IMAGES_PER_PROMPT"] = "1"
+    env_vars["ACCEPTS"] = "text,image"
     
     process = subprocess.Popen(
         [sys.executable, "-m", "orign.server.backends.vllm.main"],
@@ -131,23 +134,22 @@ def test_main(start_main_process):
         msg_dict = {
             "model": MODEL,
             "batch": [
-                # {
-                #     "messages": [
-                #         {
-                #             "role": "user",
-                #             "content": "What’s in this image?",
-                #         },
-                #         {
-                #             "role": "user",
-                #             "content": {
-                #                 "type": "image_url",
-                #                 "image_url": {
-                #                     "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
-                #                 },
-                #             },
-                #         },
-                #     ]
-                # },
+                {
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "What’s in this image?"},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                },
                 {
                     "messages": [
                         {
@@ -179,7 +181,7 @@ def test_main(start_main_process):
 
     # Consume and verify output messages from the output stream
     received_messages = 0
-    expected_messages = num_messages * 2  # Adjust if necessary
+    expected_messages = num_messages * 3  # Adjust if necessary
     timeout = time.time() + 400  # Timeout after 400 seconds
     output_results = []
 
@@ -236,9 +238,11 @@ def test_main(start_main_process):
     print("Closing Redis consumer... total received messages: ", received_messages, " expected messages: ", expected_messages, flush=True)
     time.sleep(10)
 
-    print("\n-----Results: ", flush=True)
+    print("\n====\nResults\n====\n ", flush=True)
     for i, result in enumerate(output_results):
-        print(f"\nResult {i}: {result}")
+        print(f"\n----Result {i}\n", flush=True)
+        for j, choice in enumerate(result.get("choices", [])):
+            print(f"\n►Choice {j}: {choice.get('text')}")
 
     # Verify that we received the expected number of messages
     assert (

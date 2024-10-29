@@ -167,18 +167,17 @@ def test_main(start_main_process):
                     "messages": [
                         {
                             "role": "user",
-                            "content": "What’s in this image?",
-                        },
-                        {
-                            "role": "user",
-                            "content": {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
+                            "content": [
+                                {"type": "text", "text": "What’s in this image?"},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
+                                    },
                                 },
-                            },
+                            ],
                         },
-                    ]
+                    ],
                 },
                 {
                     "messages": [

@@ -58,26 +58,56 @@ class vLLMBackend(ModelBackend):
             for msg_entry in prompt_item.messages:
                 if isinstance(msg_entry.content, str):
                     prompt_text += msg_entry.content + "\n"
+                elif isinstance(msg_entry.content, list):
+                    for content_item in msg_entry.content:
+                        if content_item.type == "text" and content_item.text:
+                            prompt_text += content_item.text + "\n"
+                        elif content_item.type == "image_url" and content_item.image_url:
+                            try:
+                                image_url = content_item.image_url.url
+                                image = await open_image_from_input_async(image_url)
+                                print(f"Downloaded image from URL '{image_url}'")
+                                images.append(image)
+                            except Exception as e:
+                                print(f"Failed to load image: {e}")
+                                continue
+                        elif content_item.type == "image_base64" and content_item.data:
+                            try:
+                                base64_data = content_item.data
+                                image = await open_image_from_input_async(base64_data)
+                                print("Decoded base64 image")
+                                images.append(image)
+                            except Exception as e:
+                                print(f"Failed to load image: {e}")
+                                continue
+                        else:
+                            print(f"Unknown content item type: {content_item.type}")
                 elif isinstance(msg_entry.content, ContentItem):
                     content_item = msg_entry.content
                     if content_item.type == "text" and content_item.text:
                         prompt_text += content_item.text + "\n"
-                    elif content_item.type in ["image_url", "image_base64"]:
-                        # Load the image
+                    elif content_item.type == "image_url" and content_item.image_url:
                         try:
-                            if content_item.type == "image_url":
-                                image_url = content_item.image_url.url
-                                image = await open_image_from_input_async(image_url)
-                                print(f"Downloaded image from URL '{image_url}'")
-                            else:
-                                base64_data = content_item.data
-                                image = await open_image_from_input_async(base64_data)
-                                print(f"Decoded base64 image")
-
+                            image_url = content_item.image_url.url
+                            image = await open_image_from_input_async(image_url)
+                            print(f"Downloaded image from URL '{image_url}'")
                             images.append(image)
                         except Exception as e:
                             print(f"Failed to load image: {e}")
                             continue
+                    elif content_item.type == "image_base64" and content_item.data:
+                        try:
+                            base64_data = content_item.data
+                            image = await open_image_from_input_async(base64_data)
+                            print("Decoded base64 image")
+                            images.append(image)
+                        except Exception as e:
+                            print(f"Failed to load image: {e}")
+                            continue
+                    else:
+                        print(f"Unknown content item type: {content_item.type}")
+                else:
+                    print(f"Unexpected content type in message: {type(msg_entry.content)}")
 
             if not prompt_text.strip():
                 print(f"No valid content found in message item {idx}")
