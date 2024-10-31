@@ -52,7 +52,7 @@ class ModelBackend(ABC, Generic[S]):
         print("Starting main()")
         self.initialize_engine()
         print("Initialized Engine")
-        
+
         self.consumer = get_message_consumer_async(self.config)
         self.producer = get_message_producer_async(self.config)
 
@@ -67,6 +67,7 @@ class ModelBackend(ABC, Generic[S]):
                 messages = await self.consumer.get_messages()
                 if not messages:
                     continue
+                print(f"Received {len(messages)} messages", flush=True)
 
                 tasks = []
                 # Process messages per partition
@@ -75,19 +76,27 @@ class ModelBackend(ABC, Generic[S]):
                         print(f"Processing message {msg}")
                         try:
                             # Validate the incoming message
-                            message = schema.parse_raw(msg['value'])
+                            message = schema.parse_raw(msg["value"])
                         except Exception as e:
                             error_trace = traceback.format_exc()
-                            print(f"Validation error for message {message}: {e}\n{error_trace}")
+                            print(
+                                f"Validation error for message {message}: {e}\n{error_trace}"
+                            )
                             error_response = ErrorResponse(
                                 error=f"Validation error: {e}",
                                 request_id="",
-                                traceback=error_trace
+                                traceback=error_trace,
                             )
-                            tasks.append(asyncio.create_task(self.producer.produce(error_response)))
+                            tasks.append(
+                                asyncio.create_task(
+                                    self.producer.produce(error_response)
+                                )
+                            )
                         else:
                             # Create a task to process the message with semaphore limit
-                            task = asyncio.create_task(self._sem_process_message(msg=message))
+                            task = asyncio.create_task(
+                                self._sem_process_message(msg=message)
+                            )
                             tasks.append(task)
                 if tasks:
                     # Run all tasks concurrently within limit
@@ -99,7 +108,7 @@ class ModelBackend(ABC, Generic[S]):
 
         except KeyboardInterrupt:
             print("Processing interrupted by user")
-        
+
         except Exception as e:
             error_trace = traceback.format_exc()
             print(f"Error in main(): {e}\n{error_trace}")

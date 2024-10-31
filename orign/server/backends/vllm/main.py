@@ -49,6 +49,7 @@ class vLLMBackend(ModelBackend):
 
     async def process_message(self, msg: ChatRequest):
         """Process a single message using the vLLM engine."""
+        print(f"Processing message for request_id {msg.request_id}", flush=True)
         if not msg.request_id:
             raise ValueError("No request_id found in message")
 

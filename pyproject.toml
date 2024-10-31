@@ -21,11 +21,13 @@ redis = "^5.2.0"
 torch = "2.4.0"
 pydantic = "^2.9.2"
 
-
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
 jupyterlab = "^4.2.5"
 pytest = "^8.3.3"
+
+[tool.poetry.group.easyocr.dependencies]
+easyocr = "^1.7.2"
 
 [build-system]
 requires = ["poetry-core"]
