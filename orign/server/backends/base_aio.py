@@ -50,8 +50,8 @@ class ModelBackend(ABC, Generic[S]):
     async def main(self) -> None:
         """Main loop for processing messages."""
         print("Starting main()", flush=True)
-        self.initialize_engine(flush=True)
-        print("Initialized Engine")
+        self.initialize_engine()
+        print("Initialized Engine", flush=True)
 
         self.consumer = get_message_consumer_async(self.config)
         self.producer = get_message_producer_async(self.config)
