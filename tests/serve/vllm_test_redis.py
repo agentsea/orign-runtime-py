@@ -27,6 +27,12 @@ def setup_redis_streams():
     # Connect to Redis
     r = redis.Redis(**redis_conf)
     
+    try:
+        r.delete(INPUT_STREAM)
+        r.delete(OUTPUT_STREAM)
+    except:
+        pass
+
     # Create input and output streams with consumer groups
     try:
         r.xgroup_create(INPUT_STREAM, GROUP_NAME, id='0', mkstream=True)
@@ -47,8 +53,11 @@ def setup_redis_streams():
     yield  # Proceed with tests
 
     # Optional: Clean up streams after tests
-    # r.delete(INPUT_STREAM)
-    # r.delete(OUTPUT_STREAM)
+    try:
+        r.delete(INPUT_STREAM)
+        r.delete(OUTPUT_STREAM)
+    except:
+        pass
 
 @pytest.fixture(scope="module")
 def start_main_process():

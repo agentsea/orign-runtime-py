@@ -1,3 +1,4 @@
+# orign/server/queue/redis_aio.py
 from typing import Optional, Callable, Any, List, Dict
 from pydantic import BaseModel
 import redis.asyncio as redis
@@ -13,9 +14,9 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
         self.config = config
         self.redis: Optional[redis.Redis] = None
         self.consumer_group = config.GROUP_ID
-        self.consumer_name = f"{config.GROUP_ID}-{time.time()}"
+        self.consumer_name = f"{config.GROUP_ID}-{int(time.time())}"
         self.pending_messages: Dict[str, List[Any]] = {}
-        self.last_ids: Dict[str, str] = {}
+        self.pending_message_ids: Dict[str, List[str]] = {}
 
     async def start(self) -> None:
         print("Starting AsyncRedisMessageConsumer...")
@@ -55,22 +56,37 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
         self, timeout: float = 1.0
     ) -> Optional[Dict[str, List[Any]]]:
         try:
-            # First, try to read pending messages
-            print(
-                f"Attempting to read pending messages for topics: {self.config.INPUT_TOPICS}"
-            )
-            streams = {topic: "0" for topic in self.config.INPUT_TOPICS}
-            messages = await self.redis.xreadgroup(
-                groupname=self.consumer_group,
-                consumername=self.consumer_name,
-                streams=streams,
-                count=100,
-                block=0,  # Non-blocking call
-            )
-            print(f"Pending messages received: {messages}")
+            messages = []
 
+            # Step 1: Check for pending messages
+            for topic in self.config.INPUT_TOPICS:
+                pending_info = await self.redis.xpending_range(
+                    name=topic,
+                    groupname=self.consumer_group,
+                    min="-",
+                    max="+",
+                    count=100,
+                )
+
+                if pending_info:
+                    msg_ids = [entry["message_id"] for entry in pending_info]
+                    print(f"Found pending messages for topic '{topic}': {msg_ids}")
+
+                    # Claim the pending messages
+                    claimed_msgs = await self.redis.xclaim(
+                        name=topic,
+                        groupname=self.consumer_group,
+                        consumername=self.consumer_name,
+                        min_idle_time=0,
+                        message_ids=msg_ids,
+                    )
+                    if claimed_msgs:
+                        messages.append((topic, claimed_msgs))
+                else:
+                    print(f"No pending messages for topic '{topic}'")
+
+            # Step 2: If no pending messages, read new messages
             if not messages:
-                # No pending messages, read new messages
                 print("No pending messages found. Attempting to read new messages.")
                 streams = {topic: ">" for topic in self.config.INPUT_TOPICS}
                 messages = await self.redis.xreadgroup(
@@ -94,19 +110,20 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
                 print(f"Processing messages for topic: {topic}")
                 if topic not in self.pending_messages:
                     self.pending_messages[topic] = []
+                    self.pending_message_ids[topic] = []
 
                 message_list = []
                 for msg_id, msg_data in msgs:
                     print(f"Received message ID: {msg_id} with data: {msg_data}")
-                    self.last_ids[topic] = msg_id
                     message = {
                         "topic": topic,
                         "offset": msg_id,
                         "value": msg_data.get("payload", ""),
                     }
                     message_list.append(message)
-                    self.pending_messages[topic].extend(message_list)
-                    print(f"Added message to pending_messages[{topic}]")
+                    self.pending_messages[topic].append(message)
+                    self.pending_message_ids[topic].append(msg_id)
+                    print(f"Added message ID {msg_id} to pending_message_ids[{topic}]")
 
                 formatted_messages[topic] = message_list
                 print(f"Formatted messages for topic '{topic}': {message_list}")
@@ -120,14 +137,15 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
 
     async def commit(self) -> None:
         try:
-            print(f"Committing messages for topics: {list(self.last_ids.keys())}")
+            print(f"Committing messages for topics: {list(self.pending_message_ids.keys())}")
             # Acknowledge messages for each topic
-            for topic, msg_id in self.last_ids.items():
-                print(f"Acknowledging message ID '{msg_id}' for topic '{topic}'")
-                await self.redis.xack(topic, self.consumer_group, msg_id)
+            for topic, msg_ids in self.pending_message_ids.items():
+                if msg_ids:
+                    print(f"Acknowledging message IDs '{msg_ids}' for topic '{topic}'")
+                    await self.redis.xack(topic, self.consumer_group, *msg_ids)
             self.pending_messages.clear()
-            self.last_ids.clear()
-            print("Commit successful, cleared pending messages and last_ids.")
+            self.pending_message_ids.clear()
+            print("Commit successful, cleared pending messages and pending_message_ids.")
         except Exception as e:
             print(f"Error during commit: {e}")
             traceback.print_exc()
