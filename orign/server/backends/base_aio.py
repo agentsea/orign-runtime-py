@@ -76,7 +76,7 @@ class ModelBackend(ABC, Generic[S]):
                         print(f"Processing message {msg}")
                         try:
                             # Validate the incoming message
-                            message = schema.parse_raw(msg["value"])
+                            message = schema.model_validate_json(msg["value"])
                         except Exception as e:
                             error_trace = traceback.format_exc()
                             print(

@@ -6,6 +6,7 @@ import time
 from ..config import Config
 from .base import AsyncMessageConsumer, AsyncMessageProducer
 
+
 class AsyncRedisMessageConsumer(AsyncMessageConsumer):
     def __init__(self, config: Config) -> None:
         self.config = config
@@ -16,11 +17,8 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
         self.last_ids: Dict[str, str] = {}
 
     async def start(self) -> None:
-        self.redis = redis.from_url(
-            self.config.REDIS_URL,
-            decode_responses=True
-        )
-        
+        self.redis = redis.from_url(self.config.REDIS_URL, decode_responses=True)
+
         # Create consumer group for each input topic
         for topic in self.config.INPUT_TOPICS:
             try:
@@ -28,26 +26,29 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
                     topic,
                     self.consumer_group,
                     mkstream=True,
-                    id='0'  # Start from beginning
+                    id="0",  # Start from beginning
                 )
             except redis.ResponseError as e:
-                if 'BUSYGROUP' not in str(e):  # Ignore if group already exists
+                if "BUSYGROUP" not in str(e):  # Ignore if group already exists
                     raise
-                
-        print(f"Initialized AsyncRedisMessageConsumer for group: {self.consumer_group}")
 
-    async def get_messages(self, timeout: float = 1.0) -> Optional[Dict[str, List[Any]]]:
+        print(f"Initialized AsyncRedisMessageConsumer for group: {self.consumer_group}")
+        print(f"Watching topics: {', '.join(self.config.INPUT_TOPICS)}")
+
+    async def get_messages(
+        self, timeout: float = 1.0
+    ) -> Optional[Dict[str, List[Any]]]:
         try:
             # Read messages from all input topics
-            streams = {topic: '>' for topic in self.config.INPUT_TOPICS}
+            streams = {topic: ">" for topic in self.config.INPUT_TOPICS}
             messages = await self.redis.xreadgroup(
                 groupname=self.consumer_group,
                 consumername=self.consumer_name,
                 streams=streams,
                 count=100,  # Adjust batch size as needed
-                block=int(timeout * 1000)
+                block=int(timeout * 1000),
             )
-            
+
             if not messages:
                 return None
 
@@ -56,18 +57,20 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
             for topic, msgs in messages:
                 if topic not in self.pending_messages:
                     self.pending_messages[topic] = []
-                
+
                 message_list = []
                 for msg_id, msg_data in msgs:
                     self.last_ids[topic] = msg_id
                     message = {
-                        'topic': topic,
-                        'offset': msg_id,
-                        'value': msg_data['payload']  # Assuming message is stored in 'payload' field
+                        "topic": topic,
+                        "offset": msg_id,
+                        "value": msg_data[
+                            "payload"
+                        ],  # Assuming message is stored in 'payload' field
                     }
                     message_list.append(message)
                     self.pending_messages[topic].extend(message_list)
-                
+
                 formatted_messages[topic] = message_list
 
             return formatted_messages
@@ -104,10 +107,7 @@ class AsyncRedisMessageProducer(AsyncMessageProducer):
         self.redis: Optional[redis.Redis] = None
 
     async def start(self) -> None:
-        self.redis = redis.from_url(
-            self.config.REDIS_URL,
-            decode_responses=True
-        )
+        self.redis = redis.from_url(self.config.REDIS_URL, decode_responses=True)
         print(f"Initialized AsyncRedisMessageProducer")
 
     async def produce(
@@ -115,21 +115,18 @@ class AsyncRedisMessageProducer(AsyncMessageProducer):
         value: BaseModel,
         topic: str,
         callback: Optional[Callable[[Any, Optional[Exception]], None]] = None,
-        partition: Optional[int] = None
+        partition: Optional[int] = None,
     ) -> None:
         if not self.redis:
-            raise RuntimeError("Producer is not started. Call start() before producing messages.")
+            raise RuntimeError(
+                "Producer is not started. Call start() before producing messages."
+            )
 
         try:
             # Serialize the message
             serialized_value = value.model_dump_json()
             # Add message to stream
-            msg_id = await self.redis.xadd(
-                topic,
-                {
-                    'payload': serialized_value
-                }
-            )
+            msg_id = await self.redis.xadd(topic, {"payload": serialized_value})
             if callback:
                 callback(msg_id, None)
         except Exception as e:
