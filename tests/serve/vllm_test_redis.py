@@ -10,11 +10,12 @@ import time
 # Redis configuration
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
-INPUT_STREAM = f"allenai/Molmo-7B-D-0924-{int(time.time())}"
+INPUT_STREAM = f"test1,allenai/Molmo-7B-D-0924-{int(time.time())}"
 USER_EMAIL = "tom@myspace.com"
 OUTPUT_STREAM = f"chat_results:{USER_EMAIL}:{INPUT_STREAM}-{int(time.time())}"
 GROUP_NAME = "test_consumer_group_vllm"
 MODEL = "allenai/Molmo-7B-D-0924"
+INPUT_STREAM_GOOD = INPUT_STREAM.split(",")[1]
 
 # Redis configuration dictionary
 redis_conf = {
@@ -28,17 +29,17 @@ def setup_redis_streams():
     r = redis.Redis(**redis_conf)
     
     try:
-        r.delete(INPUT_STREAM)
+        r.delete(INPUT_STREAM_GOOD)
         r.delete(OUTPUT_STREAM)
     except:
         pass
 
     # Create input and output streams with consumer groups
     try:
-        r.xgroup_create(INPUT_STREAM, GROUP_NAME, id='0', mkstream=True)
+        r.xgroup_create(INPUT_STREAM_GOOD, GROUP_NAME, id='0', mkstream=True)
     except redis.exceptions.ResponseError as e:
         if 'BUSYGROUP' in str(e):
-            print(f"Consumer group {GROUP_NAME} already exists for stream {INPUT_STREAM}")
+            print(f"Consumer group {GROUP_NAME} already exists for stream {INPUT_STREAM_GOOD}")
         else:
             raise
 
@@ -54,7 +55,7 @@ def setup_redis_streams():
 
     # Optional: Clean up streams after tests
     try:
-        r.delete(INPUT_STREAM)
+        r.delete(INPUT_STREAM_GOOD)
         r.delete(OUTPUT_STREAM)
     except:
         pass
@@ -186,7 +187,7 @@ def test_main(start_main_process):
             "output_topic": OUTPUT_STREAM,
         }
         msg = json.dumps(msg_dict)
-        r.xadd(INPUT_STREAM, {'payload': msg})
+        r.xadd(INPUT_STREAM_GOOD, {'payload': msg})
 
     # Consume and verify output messages from the output stream
     received_messages = 0
