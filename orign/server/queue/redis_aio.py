@@ -118,7 +118,7 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
                     message = {
                         "topic": topic,
                         "offset": msg_id,
-                        "value": msg_data.get("payload", ""),
+                        "value": msg_data.get("message", ""),
                     }
                     message_list.append(message)
                     self.pending_messages[topic].append(message)
@@ -192,7 +192,7 @@ class AsyncRedisMessageProducer(AsyncMessageProducer):
             # Serialize the message
             serialized_value = value.model_dump_json()
             # Add message to stream
-            msg_id = await self.redis.xadd(topic, {"payload": serialized_value})
+            msg_id = await self.redis.xadd(topic, {"message": serialized_value})
             if callback:
                 callback(msg_id, None)
         except Exception as e:

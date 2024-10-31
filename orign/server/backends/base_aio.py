@@ -81,7 +81,7 @@ class ModelBackend(ABC, Generic[S]):
                         except Exception as e:
                             error_trace = traceback.format_exc()
                             print(
-                                f"Validation error for message {message}: {e}\n{error_trace}"
+                                f"Validation error for message {msg}: {e}\n{error_trace}"
                             )
                             error_response = ErrorResponse(
                                 error=f"Validation error: {e}",

@@ -187,7 +187,7 @@ def test_main(start_main_process):
             "output_topic": OUTPUT_STREAM,
         }
         msg = json.dumps(msg_dict)
-        r.xadd(INPUT_STREAM_GOOD, {'payload': msg})
+        r.xadd(INPUT_STREAM_GOOD, {'message': msg})
 
     # Consume and verify output messages from the output stream
     received_messages = 0
@@ -214,7 +214,7 @@ def test_main(start_main_process):
 
         for stream_name, entries in messages:
             for msg_id, msg_data in entries:
-                payload = msg_data[b'payload'].decode('utf-8')
+                payload = msg_data[b'message'].decode('utf-8')
                 print(f"Received message payload: {payload}", flush=True)
                 output_data = json.loads(payload)
                 print(f"Received output message: {output_data}", flush=True)
