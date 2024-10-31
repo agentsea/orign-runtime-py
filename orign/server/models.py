@@ -1,6 +1,5 @@
 from typing import List, Union, Optional, Dict, Any
-
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, root_validator
 
 # === Chat Request ===
 
@@ -25,7 +24,6 @@ class Prompt(BaseModel):
 
 class SamplingParams(BaseModel):
     """Sampling parameters for chat requests"""
-
     n: int = 1
     best_of: Optional[int] = None
     presence_penalty: float = 0.0
@@ -48,7 +46,6 @@ class SamplingParams(BaseModel):
 
 class Usage(BaseModel):
     """Usage for chat requests"""
-
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
@@ -65,16 +62,22 @@ class ChatRequest(BaseModel):
     prompt: Optional[Prompt] = None
     batch: Optional[List[Prompt]] = None
     max_tokens: int = 512
-    sampling_params: SamplingParams = SamplingParams()
+    sampling_params: SamplingParams = Field(default_factory=SamplingParams)
     stream: bool = False
     user_id: Optional[str] = None
     output_topic: Optional[str] = None
     output_partition: Optional[int] = None
-    
+
+    @root_validator(pre=True)
+    def replace_none_with_default(cls, values):
+        if 'max_tokens' in values and values['max_tokens'] is None:
+            values['max_tokens'] = 512
+        if 'sampling_params' in values and values['sampling_params'] is None:
+            values['sampling_params'] = SamplingParams()
+        return values
 
 class Choice(BaseModel):
     """Individual choice in the token response"""
-
     index: int
     text: str
     tokens: Optional[List[str]] = None
@@ -84,7 +87,6 @@ class Choice(BaseModel):
 
 class ChatResponse(BaseModel):
     """Chat response"""
-
     type: str = "ChatResponse"
     request_id: str
     choices: List[Choice]
@@ -93,7 +95,6 @@ class ChatResponse(BaseModel):
 
 class TokenResponse(BaseModel):
     """Token response"""
-
     type: str = "TokenResponse"
     request_id: str
     tokens: List[str]

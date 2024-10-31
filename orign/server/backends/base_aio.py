@@ -88,11 +88,16 @@ class ModelBackend(ABC, Generic[S]):
                                 request_id="",
                                 traceback=error_trace,
                             )
-                            tasks.append(
-                                asyncio.create_task(
-                                    self.producer.produce(error_response)
+                            try:
+                                topic = msg["value"]["output_topic"]
+                                tasks.append(
+                                    asyncio.create_task(
+                                        self.producer.produce(topic=topic, value=error_response)
+                                    )
                                 )
-                            )
+                            except Exception as e:
+                                print(f"Error producing error response: {e}", flush=True)
+                                pass
                         else:
                             # Create a task to process the message with semaphore limit
                             task = asyncio.create_task(
