@@ -49,16 +49,17 @@ class ModelBackend(ABC, Generic[S]):
 
     async def main(self) -> None:
         """Main loop for processing messages."""
-        print("Starting main()")
-        self.initialize_engine()
+        print("Starting main()", flush=True)
+        self.initialize_engine(flush=True)
         print("Initialized Engine")
 
         self.consumer = get_message_consumer_async(self.config)
         self.producer = get_message_producer_async(self.config)
+        print("Initialized Consumer and Producer", flush=True)
 
         await self.consumer.start()
         await self.producer.start()
-
+        print("Started Consumer and Producer", flush=True)
         # Get the schema accepted by the backend
         schema = self.accepts()
 

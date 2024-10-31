@@ -32,8 +32,11 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
                 if "BUSYGROUP" not in str(e):  # Ignore if group already exists
                     raise
 
-        print(f"Initialized AsyncRedisMessageConsumer for group: {self.consumer_group}")
-        print(f"Watching topics: {', '.join(self.config.INPUT_TOPICS)}")
+        print(
+            f"Initialized AsyncRedisMessageConsumer for group: {self.consumer_group}",
+            flush=True,
+        )
+        print(f"Watching topics: {', '.join(self.config.INPUT_TOPICS)}", flush=True)
 
     async def get_messages(
         self, timeout: float = 1.0
