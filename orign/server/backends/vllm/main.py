@@ -45,7 +45,7 @@ class vLLMBackend(ModelBackend):
             }
 
         self.engine = AsyncLLMEngine.from_engine_args(engine_args)
-        print("Initialized AsyncLLMEngine")
+        print("Initialized AsyncLLMEngine", flush=True)
 
     async def process_message(self, msg: ChatRequest):
         """Process a single message using the vLLM engine."""
