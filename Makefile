@@ -19,6 +19,10 @@ test-vllm:
 test-vllm-redis:
 	poetry run pytest -s -vvv tests/serve/vllm_test_redis.py
 
+.PHONY: test-vllm-redis-stream
+test-vllm-redis-stream:
+	poetry run pytest -s -vvv tests/serve/vllm_test_redis_stream.py
+
 .PHONY: build-vllm
 build-vllm:
 	docker build --platform=linux/amd64 -f ./orign/server/backends/vllm/Dockerfile -t orign-vllm .

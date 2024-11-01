@@ -1,5 +1,5 @@
 from typing import List, Union, Optional, Dict, Any
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field, model_validator
 
 # === Chat Request ===
 
@@ -61,15 +61,16 @@ class ChatRequest(BaseModel):
     namespace: Optional[str] = None
     prompt: Optional[Prompt] = None
     batch: Optional[List[Prompt]] = None
-    max_tokens: int = 512
+    max_tokens: int = Field(default=512)
     sampling_params: SamplingParams = Field(default_factory=SamplingParams)
     stream: bool = False
     user_id: Optional[str] = None
     output_topic: Optional[str] = None
     output_partition: Optional[int] = None
 
-    @root_validator(pre=True)
-    def replace_none_with_default(cls, values):
+    @model_validator(mode='before')
+    @classmethod
+    def replace_none_with_default(cls, values: dict) -> dict:
         if 'max_tokens' in values and values['max_tokens'] is None:
             values['max_tokens'] = 512
         if 'sampling_params' in values and values['sampling_params'] is None:
@@ -97,9 +98,7 @@ class TokenResponse(BaseModel):
     """Token response"""
     type: str = "TokenResponse"
     request_id: str
-    tokens: List[str]
-    token_ids: Optional[List[int]] = None
-    logprobs: Optional[List[Dict[Union[int, str], Any]]] = None
+    choices: List[Choice]
     usage: Optional[Usage] = None
 
 # === OCR Request ===

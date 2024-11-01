@@ -273,7 +273,6 @@ class vLLMBackend(ModelBackend):
                         type="TokenResponse",
                         request_id=request_id,
                         choices=[choice],
-                        trip_time=None,  # You can calculate and assign trip_time if needed
                     )
                     await self.producer.produce(
                         token_response, topic=topic, partition=partition
