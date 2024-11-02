@@ -1,6 +1,6 @@
 # base_aio.py
 from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, AsyncGenerator, Union, get_args, get_origin, Type
+from typing import TypeVar, Generic, AsyncGenerator, Union, Type
 import traceback
 import asyncio
 
@@ -146,18 +146,21 @@ class Processor(ABC, Generic[I, O, C]):
             await self.producer.stop()
 
 
+# ===== Chat Models =====
 ChatResponses = Union[ChatResponse, TokenResponse, ErrorResponse]
 
 class ChatModel(Processor[ChatRequest, ChatResponses, C], Generic[C]):
     def accepts(self) -> Type[ChatRequest]:
         return ChatRequest
 
+# ===== OCR Models =====
 OCRResponses = Union[OCRResponse, ErrorResponse]
 
 class OCRModel(Processor[OCRRequest, OCRResponses, C], Generic[C]):
     def accepts(self) -> Type[OCRRequest]:
         return OCRRequest
 
+# ===== Embedding Models =====
 EmbeddingResponses = Union[EmbeddingResponse, ErrorResponse]
 
 class EmbeddingModel(Processor[EmbeddingRequest, EmbeddingResponses, C], Generic[C]):
