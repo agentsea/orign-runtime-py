@@ -106,12 +106,16 @@ class TokenResponse(BaseModel):
 class OCRRequest(BaseModel):
     """Simple OCR request following EasyOCR patterns"""
 
+    type: str = "OCRRequest"
+    request_id: Optional[str] = None
     image: str
     languages: List[str]  # e.g. ['en'], ['ch_sim', 'en']
     gpu: bool = True
     detail: bool = True  # True returns bounding boxes, False returns just text
     paragraph: bool = False  # Merge text into paragraphs
     min_confidence: Optional[float] = 0.0
+    output_topic: Optional[str] = None
+    output_partition: Optional[int] = None
 
 class BoundingBox(BaseModel):
     """Coordinates for text location: [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]"""
@@ -123,6 +127,8 @@ class BoundingBox(BaseModel):
 class OCRResponse(BaseModel):
     """Response containing detected text and locations"""
 
+    type: str = "OCRResponse"
+    request_id: str
     results: Union[List[BoundingBox], List[str]]  # List[str] if detail=False
     processing_time: Optional[float]
     error: Optional[str]

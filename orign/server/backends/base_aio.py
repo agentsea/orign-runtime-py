@@ -7,7 +7,7 @@ import asyncio
 from pydantic import BaseModel
 
 from ..config import Config
-from ..models import ErrorResponse
+from ..models import ErrorResponse, ChatRequest, ChatResponse
 from ..queue.base import AsyncMessageProducer, AsyncMessageConsumer
 from ..queue.factory import get_message_consumer_async, get_message_producer_async
 
@@ -16,7 +16,7 @@ S = TypeVar("S", bound=BaseModel)
 
 class ModelBackend(ABC, Generic[S]):
     def __init__(self):
-        self.config = None
+        self.config: Config = Config()
         self.engine = None
         self.producer: AsyncMessageProducer = None
         self.consumer: AsyncMessageConsumer = None
@@ -124,3 +124,7 @@ class ModelBackend(ABC, Generic[S]):
             await self.consumer.stop()
             await self.producer.flush()
             await self.producer.stop()
+
+
+# class ChatBackend(ModelBackend[ChatRequest]):
+#     pass

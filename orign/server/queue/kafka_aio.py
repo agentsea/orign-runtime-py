@@ -116,8 +116,15 @@ class AsyncKafkaMessageProducer(AsyncMessageProducer):
     ) -> None:
         if not self.producer:
             raise RuntimeError("Producer is not started. Call start() before producing messages.")
+        
+        if not isinstance(value, BaseModel):
+            raise ValueError("Value must be a Pydantic model: ", value)
 
-        serialized_value = value.model_dump_json().encode('utf-8')  # Using .json() for serialization
+        try:
+            serialized_value = value.model_dump_json().encode('utf-8')
+        except Exception as e:
+            raise ValueError(f"Error serializing value: {e} value: {value}")
+        
         try:
             future = await self.producer.send(topic, serialized_value, partition=partition)
             # Await the future to ensure delivery

@@ -28,6 +28,11 @@ pytest = "^8.3.3"
 
 [tool.poetry.group.easyocr.dependencies]
 easyocr = "^1.7.2"
+numpy = "1.26.4"
+
+
+[tool.poetry.group.doctr.dependencies]
+python-doctr = {extras = ["torch"], version = "^0.10.0"}
 
 [build-system]
 requires = ["poetry-core"]

@@ -84,15 +84,6 @@ class vLLMBackend(ModelBackend):
                             except Exception as e:
                                 print(f"Failed to load image: {e}")
                                 continue
-                        elif content_item.type == "image_base64" and content_item.data:
-                            try:
-                                base64_data = content_item.data
-                                image = await open_image_from_input_async(base64_data)
-                                print("Decoded base64 image")
-                                images.append(image)
-                            except Exception as e:
-                                print(f"Failed to load image: {e}")
-                                continue
                         else:
                             print(f"Unknown content item type: {content_item.type}")
                 elif isinstance(msg_entry.content, ContentItem):

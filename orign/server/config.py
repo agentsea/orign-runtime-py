@@ -19,7 +19,7 @@ class Config:
     GROUP_ID = _get_required_env("QUEUE_GROUP_ID")
 
     # Model configurations
-    MODEL_NAME = _get_required_env("HF_MODEL_NAME")
+    MODEL_NAME = _get_required_env("MODEL_NAME")
     TRUST_REMOTE_CODE = os.getenv("TRUST_REMOTE_CODE", "true").lower() == "true"
     TORCH_DTYPE = os.getenv("TORCH_DTYPE", "auto")
     TENSOR_PARALLEL_SIZE = int(os.getenv("TENSOR_PARALLEL_SIZE", "1"))

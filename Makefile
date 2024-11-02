@@ -23,6 +23,10 @@ test-vllm-redis:
 test-vllm-redis-stream:
 	poetry run pytest -s -vvv tests/serve/vllm_test_redis_stream.py
 
+.PHONY: test-easyocr
+test-easyocr:
+	poetry run pytest -s -vvv tests/serve/easyocr_test.py
+
 .PHONY: build-vllm
 build-vllm:
 	docker build --platform=linux/amd64 -f ./orign/server/backends/vllm/Dockerfile -t orign-vllm .

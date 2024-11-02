@@ -188,9 +188,15 @@ class AsyncRedisMessageProducer(AsyncMessageProducer):
                 "Producer is not started. Call start() before producing messages."
             )
 
+        if not isinstance(value, BaseModel):
+            raise ValueError("Value must be a Pydantic model: ", value)
+
         try:
-            # Serialize the message
-            serialized_value = value.model_dump_json()
+            serialized_value = value.model_dump_json().encode('utf-8')
+        except Exception as e:
+            raise ValueError(f"Error serializing value: {e} value: {value}")
+        
+        try:
             # Add message to stream
             msg_id = await self.redis.xadd(topic, {"message": serialized_value})
             if callback:
