@@ -47,4 +47,19 @@ steps:
           --push \
           .
 
+  - name: "gcr.io/cloud-builders/docker"
+    id: Build and Push
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        docker buildx build \
+          --platform linux/amd64 \
+          -t us-docker.pkg.dev/$PROJECT_ID/orign/doctr:latest \
+          -f ./orign/stream/processors/ocr/doctr/Dockerfile \
+          --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/doctr:buildcache \
+          --cache-to type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/doctr:buildcache,mode=max \
+          --push \
+          .
+
 timeout: "3600s"

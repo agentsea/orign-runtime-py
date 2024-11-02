@@ -73,3 +73,12 @@ ARG DOCTR_REPO='mindee/doctr'
 ARG DOCTR_VERSION=main
 RUN pip3 install -U pip setuptools wheel && \
     pip3 install "python-doctr[$FRAMEWORK]@git+https://github.com/$DOCTR_REPO.git@$DOCTR_VERSION"
+
+
+COPY . /app
+
+WORKDIR /app
+
+RUN pip3 install orign
+
+CMD ["python3", "main.py"]
