@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "orign"
-version = "0.1.1"
+version = "0.1.2"
 description = "Python client for Orign"
 authors = ["Patrick Barker <patrickbarkerco@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.10"
 transformers = "^4.45.2"
 confluent-kafka = "^2.6.0"
 pytest = "^8.3.3"
