@@ -38,10 +38,11 @@ steps:
     args:
       - "-c"
       - |
+        cd ./orign/stream/processors/embed/sentence_tf && \
         docker buildx build \
           --platform linux/amd64 \
           -t us-docker.pkg.dev/$PROJECT_ID/orign/sentence_tf:latest \
-          -f ./orign/stream/processors/embed/sentence_tf/Dockerfile \
+          -f Dockerfile \
           --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/sentence_tf:buildcache \
           --cache-to type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/sentence_tf:buildcache,mode=max \
           --push \
@@ -53,12 +54,29 @@ steps:
     args:
       - "-c"
       - |
+        cd ./orign/stream/processors/ocr/doctr && \
         docker buildx build \
           --platform linux/amd64 \
           -t us-docker.pkg.dev/$PROJECT_ID/orign/doctr:latest \
-          -f ./orign/stream/processors/ocr/doctr/Dockerfile \
+          -f Dockerfile \
           --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/doctr:buildcache \
           --cache-to type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/doctr:buildcache,mode=max \
+          --push \
+          .
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: Build and Push
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        cd ./orign/stream/processors/ocr/easyocr && \
+        docker buildx build \
+          --platform linux/amd64 \
+          -t us-docker.pkg.dev/$PROJECT_ID/orign/easyocr:latest \
+          -f Dockerfile \
+          --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/easyocr:buildcache \
+          --cache-to type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/easyocr:buildcache,mode=max \
           --push \
           .
 
