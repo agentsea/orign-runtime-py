@@ -31,6 +31,10 @@ test-easyocr:
 test-doctr:
 	poetry run pytest -s -vvv tests/stream/doctr_test.py
 
+.PHONY: test-sentence-tf
+test-sentence-tf:
+	poetry run pytest -s -vvv tests/stream/sentence_tf_test.py
+
 .PHONY: build-vllm
 build-vllm:
 	docker build --platform=linux/amd64 -f ./orign/stream/processors/chat/vllm/Dockerfile -t orign-vllm .

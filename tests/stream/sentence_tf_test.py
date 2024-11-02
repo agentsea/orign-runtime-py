@@ -14,10 +14,11 @@ import requests
 # Redis configuration
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
-INPUT_STREAM = f"test_ocr_input_stream_{int(time.time())}"
-OUTPUT_STREAM = f"test_ocr_output_stream_{int(time.time())}"
-GROUP_NAME = "test_consumer_group_doctr"
-MODEL_BACKEND = "doctr"
+INPUT_STREAM = f"test_emb_input_stream_{int(time.time())}"
+OUTPUT_STREAM = f"test_emb_output_stream_{int(time.time())}"
+GROUP_NAME = "test_consumer_group_emb"
+MODEL_BACKEND = "sentence_tf"
+MODEL = "clip-ViT-B-32"
 
 # Redis configuration dictionary
 redis_conf = {
@@ -54,7 +55,7 @@ def setup_redis_streams():
         else:
             raise
 
-    yield  # Proceed with tests
+    yield
 
     # Clean up streams after tests
     try:
@@ -65,23 +66,24 @@ def setup_redis_streams():
 
 @pytest.fixture(scope="module")
 def start_main_process():
+    # Start the EasyOCR backend as a subprocess
     env_vars = os.environ.copy()
     env_vars["QUEUE_TYPE"] = "redis"
     env_vars["QUEUE_INPUT_TOPICS"] = INPUT_STREAM
     env_vars["QUEUE_GROUP_ID"] = GROUP_NAME
     env_vars["MODEL_BACKEND"] = MODEL_BACKEND
-    env_vars["MODEL_NAME"] = "doctr"
+    env_vars["MODEL"] = MODEL
     env_vars["DEVICE"] = "cuda"
     env_vars["DEBUG"] = "true"
     env_vars["QUEUE_OUTPUT_TOPIC"] = OUTPUT_STREAM
 
     process = subprocess.Popen(
-        [sys.executable, "-m", "orign.stream.processors.ocr.doctr.main"],
+        [sys.executable, "-m", "orign.stream.processors.embed.sentence_tf.main"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=env_vars,
-        bufsize=1,  # Line-buffered
-        universal_newlines=True,  # Text mode
+        bufsize=1,
+        universal_newlines=True,
     )
 
     # Function to read and print stdout
@@ -118,7 +120,7 @@ def start_main_process():
     stdout_thread.join(timeout=5)
     stderr_thread.join(timeout=5)
 
-def test_easyocr_backend(start_main_process):
+def test_sentence_tf_backend(start_main_process):
     # Connect to Redis
     r = redis.Redis(**redis_conf)
 
@@ -130,33 +132,48 @@ def test_easyocr_backend(start_main_process):
     else:
         pytest.fail(f"Failed to download image from {image_url}")
 
-    image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+    try:
+        b64_data = base64.b64encode(image_bytes).decode('utf-8')
+        image_base64 = f"data:image/png;base64,{b64_data}"
+        if not b64_data:
+            pytest.fail("Failed to encode image to base64")
+    except Exception as e:
+        pytest.fail(f"Error encoding image to base64: {str(e)}")
 
-    # Create test OCR requests
-    num_messages = 2
+    # Create test Embedding requests
+    num_messages = 4
     messages = [
+        # Test with text input
+        {
+            "type": "EmbeddingRequest",
+            "request_id": "1",
+            "text": "The quick brown fox jumps over the lazy dog.",
+            "model": MODEL,
+            "output_topic": OUTPUT_STREAM
+        },
         # Test with base64-encoded image
         {
-            "type": "OCRRequest",
-            "request_id": "1",
+            "type": "EmbeddingRequest",
+            "request_id": "2",
             "image": image_base64,
-            "languages": ["en"],
-            "gpu": True,
-            "detail": True,
-            "paragraph": False,
-            "min_confidence": 0.5,
+            "model": MODEL,
             "output_topic": OUTPUT_STREAM
         },
         # Test with image URL
         {
-            "type": "OCRRequest",
-            "request_id": "2",
+            "type": "EmbeddingRequest",
+            "request_id": "3",
             "image": image_url,
-            "languages": ["en"],
-            "gpu": True,
-            "detail": True,
-            "paragraph": False,
-            "min_confidence": 0.5,
+            "model": MODEL,
+            "output_topic": OUTPUT_STREAM
+        },
+        # Test with both text and image
+        {
+            "type": "EmbeddingRequest",
+            "request_id": "4",
+            "text": "The quick brown fox jumps over the lazy dog.",
+            "image": image_url,
+            "model": MODEL,
             "output_topic": OUTPUT_STREAM
         }
     ]
@@ -200,11 +217,10 @@ def test_easyocr_backend(start_main_process):
                 # Collect results for validation
                 output_results.append(output_data)
 
-                # Perform basic validation for OCR responses
-                if output_data.get("type") == "OCRResponse":
+                # Perform basic validation for Embedding responses
+                if output_data.get("type") == "EmbeddingResponse":
                     assert "request_id" in output_data
-                    assert "results" in output_data
-                    assert "processing_time" in output_data
+                    assert "data" in output_data
                     received_messages += 1
                 else:
                     print(f"Received unexpected message type: {output_data.get('type')}")
@@ -224,12 +240,9 @@ def test_easyocr_backend(start_main_process):
 
     # Optional: Verify the content of the OCRResponse
     for output_data in output_results:
-        if output_data.get("type") == "OCRResponse":
-            results = output_data.get("results", [])
-            assert len(results) > 0, "OCR did not detect any text"
-            for bounding_box in results:
-                assert "points" in bounding_box
-                assert "text" in bounding_box
-                assert "confidence" in bounding_box
+        if output_data.get("type") == "EmbeddingResponse":
+            print("\n----\nEmbeddingResponse:\n")
+            print(output_data)
+            print("\n----\n")
 
     print("Test passed successfully.")

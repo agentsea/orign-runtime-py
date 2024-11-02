@@ -78,7 +78,7 @@ class ChatRequest(BaseRequest):
     type: str = "ChatRequest"
     model: Optional[str] = None
     kind: Optional[str] = None
-    backend: Optional[str] = None
+    provider: Optional[str] = None
     namespace: Optional[str] = None
     prompt: Optional[Prompt] = None
     batch: Optional[List[Prompt]] = None
@@ -127,6 +127,8 @@ class OCRRequest(BaseRequest):
     """Simple OCR request following EasyOCR patterns"""
 
     type: str = "OCRRequest"
+    model: Optional[str] = None
+    provider: Optional[str] = None
     image: str
     languages: List[str]  # e.g. ['en'], ['ch_sim', 'en']
     gpu: bool = True
@@ -146,8 +148,8 @@ class OCRResponse(BaseResponse):
 
     type: str = "OCRResponse"
     results: Union[List[BoundingBox], List[str]]  # List[str] if detail=False
-    processing_time: Optional[float]
-    error: Optional[str]
+    processing_time: Optional[float] = None
+    usage: Optional[Usage] = None
 
 # === Embeddings ===
 
@@ -155,9 +157,10 @@ class EmbeddingRequest(BaseRequest):
     """Embedding request"""
 
     type: str = "EmbeddingRequest"
+    model: Optional[str] = None
+    provider: Optional[str] = None
     text: Optional[str] = None
     image: Optional[str] = None
-    model: str
 
 class Embedding(BaseModel):
     """Embedding"""
@@ -173,7 +176,7 @@ class EmbeddingResponse(BaseResponse):
     object: str
     data: List[Embedding]
     model: str
-    usage: Usage
+    usage: Optional[Usage] = None
 
 # === Errors ===
 
