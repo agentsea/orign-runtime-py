@@ -7,47 +7,46 @@ import requests
 from PIL import Image
 import traceback
 import time
-from typing import Type, List
+from typing import AsyncGenerator, Type
 
 import easyocr
-from pydantic import BaseModel
+from pydantic_settings import BaseSettings
 
-from orign.server.models import OCRRequest, OCRResponse, BoundingBox, ErrorResponse
-from orign.server.backends.base_aio import AsyncMessageProducer, AsyncMessageConsumer
-from ..base_aio import ModelBackend
+from orign.stream.models import OCRRequest, OCRResponse, BoundingBox, ErrorResponse
+from ...base_aio import OCRModel, OCRResponses
 
 
-class EasyOCRBackend(ModelBackend):
+class EasyOCRConfig(BaseSettings):
+    device: str = "cuda"
+    gpu: bool = True
+    lang_list: list[str] = ["en"]
+    quantize: bool = False
+
+
+class EasyOCR(OCRModel[EasyOCRConfig]):
     """
     EasyOCR backend for OCR processing.
     """
 
-    def __init__(self):
-        super().__init__()
-        self.reader = None
-        self.producer: AsyncMessageProducer = None
-        print("EasyOCRBackend initialized", flush=True)
-
-    def initialize_engine(self) -> None:
-        """Initialize the OCR engine."""
+    def load(self, config: EasyOCRConfig):
+        params = {
+            "lang_list": config.lang_list,
+            "gpu": config.gpu,
+            "quantize": config.quantize,
+        }
+        if config.device == "cuda":
+            params["gpu"] = True
 
         # def __init__(self, lang_list, gpu=True, model_storage_directory=None,
         #             user_network_directory=None, detect_network="craft", 
         #             recog_network='standard', download_enabled=True, 
         #             detector=True, recognizer=True, verbose=True, 
         #             quantize=True, cudnn_benchmark=False):
-        params = {
-            "lang_list": ["en"],
-            "gpu": False,
-            "quantize": False,
-        }
-        if self.config.DEVICE == "cuda":
-            params["gpu"] = True
-
         self.reader = easyocr.Reader(**params)
         print("EasyOCR engine initialized", flush=True)
 
-    async def process_message(self, msg: OCRRequest) -> None:
+
+    async def process(self, msg: OCRRequest) -> AsyncGenerator[OCRResponses, None]:
         print("Processing message", flush=True)
         try:
             start_time = time.time()
@@ -55,9 +54,8 @@ class EasyOCRBackend(ModelBackend):
             # Handle image input
             if msg.image.startswith("http://") or msg.image.startswith("https://"):
                 # It's a URL, download with requests
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                }
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+                
                 response = requests.get(msg.image, headers=headers)
                 response.raise_for_status()
                 image_data = response.content
@@ -130,7 +128,7 @@ class EasyOCRBackend(ModelBackend):
                 )
 
             # Send the response
-            await self.producer.produce(ocr_response, topic=msg.output_topic)
+            yield ocr_response
 
         except Exception as e:
             error_trace = traceback.format_exc()
@@ -140,20 +138,14 @@ class EasyOCRBackend(ModelBackend):
                 error=str(e),
                 traceback=error_trace,
             )
-            await self.producer.produce(error_response, topic=msg.output_topic)
+            yield error_response
 
     def accepts(self) -> Type[OCRRequest]:
-        """The schema accepted by the backend."""
-
         return OCRRequest
-
-    def produces(self) -> List[Type[BaseModel]]:
-        """The schemas produced by the backend."""
-
-        return [OCRResponse, ErrorResponse]
 
 if __name__ == "__main__":
     import asyncio
 
-    backend = EasyOCRBackend()
-    asyncio.run(backend.main())
+    backend = EasyOCR()
+    config = EasyOCRConfig()
+    asyncio.run(backend.run(config))

@@ -73,7 +73,7 @@ def start_main_process():
     env_vars["QUEUE_TYPE"] = "redis"
     env_vars["QUEUE_INPUT_TOPICS"] = INPUT_STREAM
     env_vars["QUEUE_GROUP_ID"] = GROUP_NAME
-    env_vars["HF_MODEL_NAME"] = MODEL
+    env_vars["MODEL_NAME"] = MODEL
     env_vars["DEVICE"] = "cuda"
     env_vars["DEBUG"] = "true"
     env_vars["VLLM_DISABLE_PROMETHEUS"] = "true"
@@ -81,7 +81,7 @@ def start_main_process():
     env_vars["ACCEPTS"] = "text,image"
     
     process = subprocess.Popen(
-        [sys.executable, "-m", "orign.server.backends.vllm.main"],
+        [sys.executable, "-m", "orign.stream.processors.chat.vllm.main"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=env_vars,
@@ -184,7 +184,6 @@ def test_main(start_main_process):
                 "logprobs": 5,
             },
             "request_id": str(i),
-            "stream": True,
             "output_topic": OUTPUT_STREAM,
         }
         msg = json.dumps(msg_dict)
@@ -192,7 +191,7 @@ def test_main(start_main_process):
 
     # Consume and verify output messages from the output stream
     received_messages = 0
-    expected_messages = num_messages * 100  # Adjust if necessary
+    expected_messages = num_messages * 3  # Adjust if necessary
     timeout = time.time() + 400  # Timeout after 400 seconds
     output_results = []
 
@@ -228,7 +227,7 @@ def test_main(start_main_process):
                 output_results.append(output_data)
 
                 # Perform basic validation for generation responses
-                if output_data.get("type") == "TokenResponse":
+                if output_data.get("type") == "ChatResponse":
                     assert "request_id" in output_data
                     assert "choices" in output_data
 

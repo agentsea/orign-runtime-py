@@ -1,2 +1,2 @@
 from .client import Stream
-from .server.models import SamplingParams, ChatRequest, ChatResponse, Prompt
+from .stream.models import SamplingParams, ChatRequest, ChatResponse, Prompt

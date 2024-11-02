@@ -5,13 +5,13 @@ from confluent_kafka.cimpl import Message
 from typing import Optional, Callable, Any
 from pydantic import BaseModel
 
-from ..config import Config
+from ..config import BaseConfig
 from .base import MessageConsumer, MessageProducer
 
 
 # Kafka implementation of the abstract classes
 class KafkaMessageConsumer(MessageConsumer):
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: BaseConfig) -> None:
         consumer_conf = {
             "bootstrap.servers": ",".join(config.BOOTSTRAP_SERVERS),
             "group.id": config.GROUP_ID,
@@ -34,7 +34,7 @@ class KafkaMessageConsumer(MessageConsumer):
 
 
 class KafkaMessageProducer(MessageProducer):
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: BaseConfig) -> None:
         producer_conf = {
             "bootstrap.servers": ",".join(config.BOOTSTRAP_SERVERS),
         }

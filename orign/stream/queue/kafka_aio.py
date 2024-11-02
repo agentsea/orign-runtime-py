@@ -5,7 +5,7 @@ from aiokafka.errors import CommitFailedError, KafkaError
 from typing import Optional, Callable, Any, List, Dict
 from pydantic import BaseModel
 
-from ..config import Config
+from ..config import BaseConfig
 from .base import AsyncMessageConsumer, AsyncMessageProducer
 
 class ConsumerRebalanceListener(KafkaConsumerRebalanceListener):
@@ -21,7 +21,7 @@ class ConsumerRebalanceListener(KafkaConsumerRebalanceListener):
         print(f"Partitions assigned: {assigned}")
 
 class AsyncKafkaMessageConsumer(AsyncMessageConsumer):
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: BaseConfig) -> None:
         self.config = config
         self.consumer: Optional[AIOKafkaConsumer] = None
         self.pending_messages: Dict[TopicPartition, List[Any]] = {}
@@ -90,7 +90,7 @@ class AsyncKafkaMessageConsumer(AsyncMessageConsumer):
 
 
 class AsyncKafkaMessageProducer(AsyncMessageProducer):
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: BaseConfig) -> None:
         self.config = config
         self.producer: Optional[AIOKafkaProducer] = None
 

@@ -77,7 +77,7 @@ def start_main_process():
     env_vars["QUEUE_OUTPUT_TOPIC"] = OUTPUT_STREAM
 
     process = subprocess.Popen(
-        [sys.executable, "-m", "orign.server.backends.easyocr.main"],
+        [sys.executable, "-m", "orign.stream.processors.ocr.doctr.main"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=env_vars,

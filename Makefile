@@ -5,31 +5,35 @@ test:
 
 .PHONY: test-molmo
 test-molmo:
-	poetry run pytest -s -vvv tests/serve/hf_test_molmo.py
+	poetry run pytest -s -vvv tests/stream/hf_test_molmo.py
 
 .PHONY: test-qwen
 test-qwen:
-	poetry run pytest -s -vvv tests/serve/hf_test_qwen.py
+	poetry run pytest -s -vvv tests/stream/hf_test_qwen.py
 
 .PHONY: test-vllm
 test-vllm:
-	poetry run pytest -s -vvv tests/serve/vllm_test.py
+	poetry run pytest -s -vvv tests/stream/vllm_test.py
 
 .PHONY: test-vllm-redis
 test-vllm-redis:
-	poetry run pytest -s -vvv tests/serve/vllm_test_redis.py
+	poetry run pytest -s -vvv tests/stream/vllm_test_redis.py
 
 .PHONY: test-vllm-redis-stream
 test-vllm-redis-stream:
-	poetry run pytest -s -vvv tests/serve/vllm_test_redis_stream.py
+	poetry run pytest -s -vvv tests/stream/vllm_test_redis_stream.py
 
 .PHONY: test-easyocr
 test-easyocr:
-	poetry run pytest -s -vvv tests/serve/easyocr_test.py
+	poetry run pytest -s -vvv tests/stream/easyocr_test.py
+
+.PHONY: test-doctr
+test-doctr:
+	poetry run pytest -s -vvv tests/stream/doctr_test.py
 
 .PHONY: build-vllm
 build-vllm:
-	docker build --platform=linux/amd64 -f ./orign/server/backends/vllm/Dockerfile -t orign-vllm .
+	docker build --platform=linux/amd64 -f ./orign/stream/processors/chat/vllm/Dockerfile -t orign-vllm .
 
 .PHONY: run-redis
 run-redis:

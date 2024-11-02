@@ -1,16 +1,14 @@
 # main.py
-from typing import List, Type, Optional
+from typing import AsyncGenerator, Type
 import traceback
 import asyncio
 
 from vllm import AsyncLLMEngine, AsyncEngineArgs, SamplingParams as VLLMSamplingParams
-from pydantic import BaseModel
+from pydantic_settings import BaseSettings
 
-from ...config import Config
-from ...util import open_image_from_input_async
-from ...queue.base import AsyncMessageConsumer, AsyncMessageProducer
-from ..base_aio import ModelBackend
-from ...models import (
+from orign.stream.util import open_image_from_input_async
+from orign.stream.processors.base_aio import ChatModel, ChatResponses
+from orign.stream.models import (
     ChatRequest,
     ContentItem,
     ChatResponse,
@@ -19,36 +17,39 @@ from ...models import (
     Choice,
 )
 
+class vLLMConfig(BaseSettings):
+    model_name: str
+    trust_remote_code: bool = True
+    tensor_parallel_size: int = 1
+    torch_dtype: str = "auto"
+    max_images_per_prompt: int = 1
+    device: str = "cuda"
 
-class vLLMBackend(ModelBackend):
+
+class vLLM(ChatModel[vLLMConfig]):
     """vLLM backend"""
 
-    def __init__(self):
-        super().__init__()
-        self.config: Config = Config()
-        self.engine: AsyncLLMEngine = None
-        self.producer: AsyncMessageProducer = None
-        self.consumer: AsyncMessageConsumer = None
+    def load(self, config: vLLMConfig):
+        self.config = config
 
-    def initialize_engine(self):
-        """Initialize the vLLM engine."""
         engine_args = AsyncEngineArgs(
-            model=self.config.MODEL_NAME,
-            trust_remote_code=self.config.TRUST_REMOTE_CODE,
-            tensor_parallel_size=self.config.TENSOR_PARALLEL_SIZE,
-            dtype=self.config.TORCH_DTYPE,
-            device=self.config.DEVICE,
+            model=config.model_name,
+            trust_remote_code=config.trust_remote_code,
+            tensor_parallel_size=config.tensor_parallel_size,
+            dtype=config.torch_dtype,
+            device=config.device,
         )
-        if self.config.MAX_IMAGES_PER_PROMPT != 1:
+        if config.max_images_per_prompt != 1:
             engine_args.limit_mm_per_prompt = {
-                "image": self.config.MAX_IMAGES_PER_PROMPT
+                "image": config.max_images_per_prompt
             }
 
         self.engine = AsyncLLMEngine.from_engine_args(engine_args)
         print("Initialized AsyncLLMEngine", flush=True)
 
-    async def process_message(self, msg: ChatRequest):
+    async def process(self, msg: ChatRequest) -> AsyncGenerator[ChatResponses, None]:
         """Process a single message using the vLLM engine."""
+
         print(f"Processing message for request_id {msg.request_id}", flush=True)
         if not msg.request_id:
             raise ValueError("No request_id found in message")
@@ -125,18 +126,14 @@ class vLLMBackend(ModelBackend):
                 multi_modal_data["image"] = images if len(images) > 1 else images[0]
 
                 # Check if the number of images exceeds the limit
-                max_images = self.config.MAX_IMAGES_PER_PROMPT
+                max_images = self.config.max_images_per_prompt
                 if isinstance(images, list) and len(images) > max_images:
                     error_message = f"Number of images ({len(images)}) exceeds the maximum allowed ({max_images})."
                     print(error_message)
                     error_response = ErrorResponse(
                         request_id=msg.request_id, error=error_message
                     )
-                    await self.producer.produce(
-                        error_response,
-                        topic=msg.output_topic,
-                        partition=msg.output_partition,
-                    )
+                    yield error_response
                     return
 
             # Add the prompt and multi_modal_data to the list
@@ -157,27 +154,23 @@ class vLLMBackend(ModelBackend):
 
         for prompt in prompts:
             try:
-                await self.process_single_prompt(
+                # Use 'async for' to iterate over the async generator
+                async for response in self.process_single_prompt(
                     prompt,
                     vllm_sampling_params,
                     msg.request_id,
                     msg.stream,
-                    msg.output_topic,
-                    msg.output_partition,
-                )
+                ):
+                    yield response
             except Exception as e:
                 error_trace = traceback.format_exc()
                 print(
-                    f"Error during generation for request_id { msg.request_id}: {e}\n{error_trace}"
+                    f"Error during generation for request_id {msg.request_id}: {e}\n{error_trace}"
                 )
                 error_response = ErrorResponse(
                     request_id=msg.request_id, error=str(e), traceback=error_trace
                 )
-                await self.producer.produce(
-                    error_response,
-                    topic=msg.output_topic,
-                    partition=msg.output_partition,
-                )
+                yield error_response
 
     async def process_single_prompt(
         self,
@@ -185,8 +178,6 @@ class vLLMBackend(ModelBackend):
         sampling_params: VLLMSamplingParams,
         request_id: str,
         stream: bool,
-        topic: str,
-        partition: Optional[int] = None,
     ):
         """Process a single prompt and handle streaming or non-streaming output."""
 
@@ -265,9 +256,8 @@ class vLLMBackend(ModelBackend):
                         request_id=request_id,
                         choices=[choice],
                     )
-                    await self.producer.produce(
-                        token_response, topic=topic, partition=partition
-                    )
+                    yield token_response
+
             print(f"Completed streaming response for request_id {request_id}")
         else:
             # Non-streaming response
@@ -326,20 +316,16 @@ class vLLMBackend(ModelBackend):
             )
 
             # Send the final response
-            await self.producer.produce(response, topic=topic, partition=partition)
+            yield response
             print(f"Sent final response for request_id {request_id}")
 
-    def accepts(self) -> ChatRequest:
-        """The schema supported by the backend."""
+
+    def accepts(self) -> Type[ChatRequest]:
         return ChatRequest
-
-    def produces(self) -> List[Type[BaseModel]]:
-        """The schemas produced by the backend."""
-        return [ChatResponse, TokenResponse, ErrorResponse]
-
 
 if __name__ == "__main__":
     import asyncio
 
-    backend = vLLMBackend()
-    asyncio.run(backend.main())
+    backend = vLLM()
+    config = vLLMConfig()
+    asyncio.run(backend.run(config))

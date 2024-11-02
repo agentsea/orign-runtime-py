@@ -5,12 +5,12 @@ import redis.asyncio as redis
 import time
 import traceback
 
-from ..config import Config
+from ..config import BaseConfig
 from .base import AsyncMessageConsumer, AsyncMessageProducer
 
 
 class AsyncRedisMessageConsumer(AsyncMessageConsumer):
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: BaseConfig) -> None:
         self.config = config
         self.redis: Optional[redis.Redis] = None
         self.consumer_group = config.GROUP_ID
@@ -168,7 +168,7 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
 
 
 class AsyncRedisMessageProducer(AsyncMessageProducer):
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: BaseConfig) -> None:
         self.config = config
         self.redis: Optional[redis.Redis] = None
 

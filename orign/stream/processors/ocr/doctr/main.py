@@ -1,26 +1,25 @@
 # orign/server/backends/easyocr/main.py
 
-from io import BytesIO
 import base64
 import numpy as np
 import requests
 from PIL import Image
 import traceback
 import time
-from typing import Type, List
+from typing import AsyncGenerator
 
 from doctr.io import DocumentFile
 from doctr.models import ocr_predictor
-from pydantic import BaseModel
+from pydantic_settings import BaseSettings
 
-from orign.server.models import OCRRequest, OCRResponse, BoundingBox, ErrorResponse
-from orign.server.backends.base_aio import AsyncMessageProducer
-from ..base_aio import ModelBackend
+from orign.stream.models import OCRRequest, OCRResponse, BoundingBox, ErrorResponse
+from orign.stream.processors.base_aio import AsyncMessageProducer
+from ...base_aio import OCRModel, OCRResponses
 
 
-class EasyOCRBackend(ModelBackend[OCRRequest]):
+class Doctr(OCRModel[OCRRequest, OCRResponses]):
     """
-    EasyOCR backend for OCR processing.
+    Doctr backend for OCR processing.
     """
 
     def __init__(self):
@@ -28,21 +27,12 @@ class EasyOCRBackend(ModelBackend[OCRRequest]):
         self.reader = None
         self.producer: AsyncMessageProducer = None
         print("EasyOCRBackend initialized", flush=True)
-
-    def initialize_engine(self) -> None:
-        """Initialize the OCR engine."""
-
-        # def __init__(self, lang_list, gpu=True, model_storage_directory=None,
-        #             user_network_directory=None, detect_network="craft", 
-        #             recog_network='standard', download_enabled=True, 
-        #             detector=True, recognizer=True, verbose=True, 
-        #             quantize=True, cudnn_benchmark=False):
-
         self.model = model = ocr_predictor(pretrained=True)
 
         print("EasyOCR engine initialized", flush=True)
 
-    async def process_message(self, msg: OCRRequest) -> None:
+
+    async def process(self, msg: OCRRequest) -> AsyncGenerator[OCRResponses, None]:
         print("Processing message", flush=True)
         try:
             start_time = time.time()
@@ -108,7 +98,7 @@ class EasyOCRBackend(ModelBackend[OCRRequest]):
             )
 
             # Send the response
-            await self.producer.produce(ocr_response, topic=msg.output_topic)
+            yield ocr_response
 
         except Exception as e:
             error_trace = traceback.format_exc()
@@ -118,20 +108,10 @@ class EasyOCRBackend(ModelBackend[OCRRequest]):
                 error=str(e),
                 traceback=error_trace,
             )
-            await self.producer.produce(error_response, topic=msg.output_topic)
-
-    def accepts(self) -> Type[OCRRequest]:
-        """The schema accepted by the backend."""
-
-        return OCRRequest
-
-    def produces(self) -> List[Type[BaseModel]]:
-        """The schemas produced by the backend."""
-
-        return [OCRResponse, ErrorResponse]
+            yield error_response
 
 if __name__ == "__main__":
     import asyncio
 
-    backend = EasyOCRBackend()
-    asyncio.run(backend.main())
+    backend = Doctr()
+    asyncio.run(backend.run())
