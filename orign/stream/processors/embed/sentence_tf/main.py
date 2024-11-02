@@ -81,6 +81,5 @@ if __name__ == "__main__":
     import asyncio
 
     processor = SentenceTF()
-    print("\n\n!!!MODEL env var:", os.environ["MODEL"], flush=True)
     config = SentenceTFConfig()
     asyncio.run(processor.run(config))
