@@ -312,7 +312,7 @@ class vLLM(ChatModel[vLLMConfig]):
                 type="ChatResponse",
                 request_id=request_id,
                 choices=choices,
-                trip_time=None,  # You can calculate and assign trip_time if needed
+                trip_time=None,
             )
 
             # Send the final response
@@ -320,8 +320,6 @@ class vLLM(ChatModel[vLLMConfig]):
             print(f"Sent final response for request_id {request_id}")
 
 
-    def accepts(self) -> Type[ChatRequest]:
-        return ChatRequest
 
 if __name__ == "__main__":
     import asyncio

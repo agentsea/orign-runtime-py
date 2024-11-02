@@ -149,9 +149,11 @@ class Processor(ABC, Generic[I, O, C]):
 ChatResponses = Union[ChatResponse, TokenResponse, ErrorResponse]
 
 class ChatModel(Processor[ChatRequest, ChatResponses, C], Generic[C]):
-    pass
+    def accepts(self) -> Type[ChatRequest]:
+        return ChatRequest
 
 OCRResponses = Union[OCRResponse, ErrorResponse]
 
 class OCRModel(Processor[OCRRequest, OCRResponses, C], Generic[C]):
-    pass
+    def accepts(self) -> Type[OCRRequest]:
+        return OCRRequest

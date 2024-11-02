@@ -1,34 +1,33 @@
 # orign/server/backends/easyocr/main.py
 
 import base64
-import numpy as np
 import requests
-from PIL import Image
 import traceback
 import time
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Type
 
 from doctr.io import DocumentFile
 from doctr.models import ocr_predictor
 from pydantic_settings import BaseSettings
 
 from orign.stream.models import OCRRequest, OCRResponse, BoundingBox, ErrorResponse
-from orign.stream.processors.base_aio import AsyncMessageProducer
-from ...base_aio import OCRModel, OCRResponses
+from orign.stream.processors.base_aio import OCRModel, OCRResponses
 
 
-class Doctr(OCRModel[OCRRequest, OCRResponses]):
+class DoctrConfig(BaseSettings):
+    det_arch: str = "fast_base"
+    reco_arch: str = "crnn_vgg16_bn"
+    pretrained: bool = True
+
+
+class Doctr(OCRModel[DoctrConfig]):
     """
     Doctr backend for OCR processing.
     """
 
-    def __init__(self):
-        super().__init__()
-        self.reader = None
-        self.producer: AsyncMessageProducer = None
-        print("EasyOCRBackend initialized", flush=True)
-        self.model = model = ocr_predictor(pretrained=True)
-
+    def load(self, config: DoctrConfig):
+        self.config = config
+        self.model = model = ocr_predictor(**config.model_dump())
         print("EasyOCR engine initialized", flush=True)
 
 
@@ -114,4 +113,5 @@ if __name__ == "__main__":
     import asyncio
 
     backend = Doctr()
-    asyncio.run(backend.run())
+    config = DoctrConfig()
+    asyncio.run(backend.run(config))

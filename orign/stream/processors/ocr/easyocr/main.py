@@ -13,7 +13,7 @@ import easyocr
 from pydantic_settings import BaseSettings
 
 from orign.stream.models import OCRRequest, OCRResponse, BoundingBox, ErrorResponse
-from ...base_aio import OCRModel, OCRResponses
+from orign.stream.processors.base_aio import OCRModel, OCRResponses
 
 
 class EasyOCRConfig(BaseSettings):
@@ -140,8 +140,6 @@ class EasyOCR(OCRModel[EasyOCRConfig]):
             )
             yield error_response
 
-    def accepts(self) -> Type[OCRRequest]:
-        return OCRRequest
 
 if __name__ == "__main__":
     import asyncio
