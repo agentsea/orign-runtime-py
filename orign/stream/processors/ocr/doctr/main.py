@@ -1,10 +1,8 @@
-# orign/server/backends/easyocr/main.py
-
 import base64
 import requests
 import traceback
 import time
-from typing import AsyncGenerator, Type
+from typing import AsyncGenerator
 
 from doctr.io import DocumentFile
 from doctr.models import ocr_predictor

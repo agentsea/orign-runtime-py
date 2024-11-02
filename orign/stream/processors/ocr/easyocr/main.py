@@ -1,5 +1,3 @@
-# orign/server/backends/easyocr/main.py
-
 from io import BytesIO
 import base64
 import numpy as np
@@ -7,7 +5,7 @@ import requests
 from PIL import Image
 import traceback
 import time
-from typing import AsyncGenerator, Type
+from typing import AsyncGenerator
 
 import easyocr
 from pydantic_settings import BaseSettings

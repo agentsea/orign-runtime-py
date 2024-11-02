@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
 from ..config import BaseConfig
-from ..models import ErrorResponse, ChatRequest, ChatResponse, TokenResponse, OCRRequest, OCRResponse
+from ..models import ErrorResponse, ChatRequest, ChatResponse, TokenResponse, OCRRequest, OCRResponse, EmbeddingRequest, EmbeddingResponse
 from ..queue.base import AsyncMessageProducer, AsyncMessageConsumer
 from ..queue.factory import get_message_consumer_async, get_message_producer_async
 
@@ -157,3 +157,9 @@ OCRResponses = Union[OCRResponse, ErrorResponse]
 class OCRModel(Processor[OCRRequest, OCRResponses, C], Generic[C]):
     def accepts(self) -> Type[OCRRequest]:
         return OCRRequest
+
+EmbeddingResponses = Union[EmbeddingResponse, ErrorResponse]
+
+class EmbeddingModel(Processor[EmbeddingRequest, EmbeddingResponses, C], Generic[C]):
+    def accepts(self) -> Type[EmbeddingRequest]:
+        return EmbeddingRequest

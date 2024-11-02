@@ -1,5 +1,5 @@
 # main.py
-from typing import AsyncGenerator, Type
+from typing import AsyncGenerator
 import traceback
 import asyncio
 
