@@ -26,9 +26,24 @@ steps:
         docker buildx build \
           --platform linux/amd64 \
           -t us-docker.pkg.dev/$PROJECT_ID/orign/vllm:latest \
-          -f ./orign/server/backends/vllm/Dockerfile \
+          -f ./orign/stream/processors/chat/vllm/Dockerfile \
           --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/vllm:buildcache \
           --cache-to type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/vllm:buildcache,mode=max \
+          --push \
+          .
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: Build and Push
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        docker buildx build \
+          --platform linux/amd64 \
+          -t us-docker.pkg.dev/$PROJECT_ID/orign/sentence_tf:latest \
+          -f ./orign/stream/processors/embed/sentence_tf/Dockerfile \
+          --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/sentence_tf:buildcache \
+          --cache-to type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/sentence_tf:buildcache,mode=max \
           --push \
           .
 
