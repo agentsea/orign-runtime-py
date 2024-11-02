@@ -1,7 +1,6 @@
 from typing import AsyncGenerator
 from io import BytesIO
 import base64
-import os
 from pydantic_settings import BaseSettings
 from sentence_transformers import SentenceTransformer
 from PIL import Image
@@ -11,7 +10,7 @@ from orign.stream.processors.base_aio import EmbeddingModel, EmbeddingRequest, E
 from orign.stream.models import Embedding, EmbeddingResponse
 
 class SentenceTFConfig(BaseSettings):
-    model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    model: str = "clip-ViT-B-32"
     device: str = "cuda"
 
 
