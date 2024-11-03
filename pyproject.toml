@@ -39,6 +39,10 @@ python-doctr = {extras = ["torch"], version = "^0.10.0"}
 [tool.poetry.group.sentence-tf.dependencies]
 sentence-transformers = "^3.2.1"
 
+
+[tool.poetry.group.litellm.dependencies]
+litellm = "^1.51.3"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
