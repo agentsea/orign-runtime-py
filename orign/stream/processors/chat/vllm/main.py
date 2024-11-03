@@ -21,7 +21,7 @@ class vLLMConfig(BaseSettings):
     model_name: str
     trust_remote_code: bool = True
     tensor_parallel_size: int = 1
-    torch_dtype: str = "auto"
+    dtype: str = "auto"
     max_images_per_prompt: int = 1
     device: str = "cuda"
 
@@ -36,7 +36,7 @@ class vLLM(ChatModel[vLLMConfig]):
             model=config.model_name,
             trust_remote_code=config.trust_remote_code,
             tensor_parallel_size=config.tensor_parallel_size,
-            dtype=config.torch_dtype,
+            dtype=config.dtype,
             device=config.device,
         )
         if config.max_images_per_prompt != 1:

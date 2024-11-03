@@ -78,7 +78,7 @@ def start_main_process():
     env_vars["DEBUG"] = "true"
 
     process = subprocess.Popen(
-        [sys.executable, "-m", "orign.server.backends.vllm.main"],
+        [sys.executable, "-m", "orign.stream.processors.chat.vllm.main"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=env_vars,
