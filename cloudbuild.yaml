@@ -18,7 +18,7 @@ steps:
 
   # Build and push for multiple architectures with caching
   - name: "gcr.io/cloud-builders/docker"
-    id: Build and Push
+    id: Build and Push vllm
     entrypoint: "bash"
     args:
       - "-c"
@@ -33,7 +33,7 @@ steps:
           .
 
   - name: "gcr.io/cloud-builders/docker"
-    id: Build and Push
+    id: Build and Push sentence_tf
     entrypoint: "bash"
     args:
       - "-c"
@@ -49,7 +49,7 @@ steps:
           .
 
   - name: "gcr.io/cloud-builders/docker"
-    id: Build and Push
+    id: Build and Push doctr
     entrypoint: "bash"
     args:
       - "-c"
@@ -65,7 +65,7 @@ steps:
           .
 
   - name: "gcr.io/cloud-builders/docker"
-    id: Build and Push
+    id: Build and Push easyocr
     entrypoint: "bash"
     args:
       - "-c"
