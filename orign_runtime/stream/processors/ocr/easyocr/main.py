@@ -10,7 +10,7 @@ from typing import AsyncGenerator
 import easyocr
 from pydantic_settings import BaseSettings
 
-from orign_runtime.stream.models import OCRRequest, OCRResponse, BoundingBox, ErrorResponse
+from orign.models import OCRRequest, OCRResponse, BoundingBox, ErrorResponse
 from orign_runtime.stream.processors.base_aio import OCRModel, OCRResponses
 
 

@@ -8,7 +8,7 @@ from doctr.io import DocumentFile
 from doctr.models import ocr_predictor
 from pydantic_settings import BaseSettings
 
-from orign_runtime.stream.models import OCRRequest, OCRResponse, BoundingBox, ErrorResponse
+from orign.models import OCRRequest, OCRResponse, BoundingBox, ErrorResponse
 from orign_runtime.stream.processors.base_aio import OCRModel, OCRResponses
 
 

@@ -21,6 +21,7 @@ redis = "^5.2.0"
 torch = "2.4.0"
 pydantic = "^2.9.2"
 pydantic-settings = "^2.6.1"
+orign = "0.1.5"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"

@@ -3,7 +3,7 @@ import websockets
 import json
 
 from orign_runtime.client.config import Config
-from orign_runtime.stream.models import (
+from orign.models import (
     SamplingParams,
     ChatResponse,
     Prompt,

@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 from orign_runtime.stream.util import open_image_from_input_async
 from orign_runtime.stream.processors.base_aio import ChatModel, ChatResponses
-from orign_runtime.stream.models import (
+from orign.models import (
     ChatRequest,
     ContentItem,
     ChatResponse,

@@ -7,7 +7,7 @@ from PIL import Image
 import requests
 
 from orign_runtime.stream.processors.base_aio import EmbeddingModel, EmbeddingRequest, EmbeddingResponses
-from orign_runtime.stream.models import Embedding, EmbeddingResponse
+from orign.models import Embedding, EmbeddingResponse
 
 class SentenceTFConfig(BaseSettings):
     model: str = "clip-ViT-B-32"

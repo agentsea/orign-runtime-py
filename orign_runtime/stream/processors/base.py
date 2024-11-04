@@ -5,7 +5,7 @@ import traceback
 
 from pydantic import BaseModel
 
-from ..models import ErrorResponse
+from orign.models import ErrorResponse
 from ..queue.factory import get_message_consumer, get_message_producer
 S = TypeVar("S", bound=BaseModel)
 

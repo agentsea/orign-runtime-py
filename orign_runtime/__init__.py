@@ -1,1 +1,1 @@
-from .stream.models import SamplingParams, ChatRequest, ChatResponse, Prompt
+from orign.models import SamplingParams, ChatRequest, ChatResponse, Prompt

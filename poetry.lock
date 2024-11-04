@@ -2998,6 +2998,21 @@ numpy = [
 ]
 
 [[package]]
+name = "orign"
+version = "0.1.5"
+description = "A Python client for Orign"
+optional = false
+python-versions = "<4.0,>=3.10"
+files = [
+    {file = "orign-0.1.5-py3-none-any.whl", hash = "sha256:5666ec06d57c430a3bd633202cf583cb6688684a60ef622f4056d168463fe541"},
+    {file = "orign-0.1.5.tar.gz", hash = "sha256:3d2d7764d9355f1ea62c91f99855832ff8598317709cc59e8735a9c1d07257a9"},
+]
+
+[package.dependencies]
+pydantic = ">=2.9.2,<3.0.0"
+websockets = ">=13.1,<14.0"
+
+[[package]]
 name = "outlines"
 version = "0.0.46"
 description = "Probabilistic Generative Model Programming"
@@ -6561,4 +6576,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "ee11e86650d70952c7a63e85972de212a77fd911b4db43fdd10b144e45a1541c"
+content-hash = "72b38dcfeed28673a64ff4e78b90691d28d572a2d31a848632894604379746f4"

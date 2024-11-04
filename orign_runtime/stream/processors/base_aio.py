@@ -6,9 +6,9 @@ import asyncio
 
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
+from orign.models import ErrorResponse, ChatRequest, ChatResponse, TokenResponse, OCRRequest, OCRResponse, EmbeddingRequest, EmbeddingResponse
 
 from ..config import BaseConfig
-from ..models import ErrorResponse, ChatRequest, ChatResponse, TokenResponse, OCRRequest, OCRResponse, EmbeddingRequest, EmbeddingResponse
 from ..queue.base import AsyncMessageProducer, AsyncMessageConsumer
 from ..queue.factory import get_message_consumer_async, get_message_producer_async
 
