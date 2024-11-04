@@ -6,8 +6,8 @@ from sentence_transformers import SentenceTransformer
 from PIL import Image
 import requests
 
-from orign.stream.processors.base_aio import EmbeddingModel, EmbeddingRequest, EmbeddingResponses
-from orign.stream.models import Embedding, EmbeddingResponse
+from orign_runtime.stream.processors.base_aio import EmbeddingModel, EmbeddingRequest, EmbeddingResponses
+from orign_runtime.stream.models import Embedding, EmbeddingResponse
 
 class SentenceTFConfig(BaseSettings):
     model: str = "clip-ViT-B-32"

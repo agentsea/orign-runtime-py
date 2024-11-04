@@ -78,7 +78,7 @@ def start_main_process():
     env_vars["QUEUE_OUTPUT_TOPIC"] = OUTPUT_STREAM
 
     process = subprocess.Popen(
-        [sys.executable, "-m", "orign.stream.processors.embed.sentence_tf.main"],
+        [sys.executable, "-m", "orign_runtime.stream.processors.embed.sentence_tf.main"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=env_vars,

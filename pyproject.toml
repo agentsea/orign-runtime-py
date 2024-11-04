@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "orign"
+name = "orign-runtime"
 version = "0.1.2"
 description = "Python client for Orign"
 authors = ["Patrick Barker <patrickbarkerco@gmail.com>"]

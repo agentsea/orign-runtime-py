@@ -1,18 +1,27 @@
 # orign-py
 
-Python client for Orign
+Python runtime for Orign
 
 ## Installation
 
 ```bash
-pip install orign
+pip install orign-runtime
 ```
-
-## Client
-
 
 ## Backends
 
 ### vLLM
 
 Supports running vLLM models.
+
+### Sentence-TF
+
+Supports running Sentence-TF models.
+
+### EasyOCR
+
+Supports running EasyOCR models.
+
+### Doctr
+
+Supports running Doctr models.

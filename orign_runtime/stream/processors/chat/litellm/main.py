@@ -5,9 +5,9 @@ import asyncio
 from pydantic_settings import BaseSettings
 from litellm import Router
 
-from orign.stream.util import open_image_from_input_async
-from orign.stream.processors.base_aio import ChatModel, ChatResponses
-from orign.stream.models import (
+from orign_runtime.stream.util import open_image_from_input_async
+from orign_runtime.stream.processors.base_aio import ChatModel, ChatResponses
+from orign_runtime.stream.models import (
     ChatRequest,
     ContentItem,
     ChatResponse,

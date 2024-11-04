@@ -26,7 +26,7 @@ steps:
         docker buildx build \
           --platform linux/amd64 \
           -t us-docker.pkg.dev/$PROJECT_ID/orign/vllm:latest \
-          -f ./orign/stream/processors/chat/vllm/Dockerfile \
+          -f ./orign_runtime/stream/processors/chat/vllm/Dockerfile \
           --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/vllm:buildcache \
           --cache-to type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/vllm:buildcache,mode=max \
           --push \
@@ -38,7 +38,7 @@ steps:
     args:
       - "-c"
       - |
-        cd ./orign/stream/processors/embed/sentence_tf && \
+        cd ./orign_runtime/stream/processors/embed/sentence_tf && \
         docker buildx build \
           --platform linux/amd64 \
           -t us-docker.pkg.dev/$PROJECT_ID/orign/sentence_tf:latest \
@@ -54,7 +54,7 @@ steps:
     args:
       - "-c"
       - |
-        cd ./orign/stream/processors/ocr/doctr && \
+        cd ./orign_runtime/stream/processors/ocr/doctr && \
         docker buildx build \
           --platform linux/amd64 \
           -t us-docker.pkg.dev/$PROJECT_ID/orign/doctr:latest \
@@ -70,7 +70,7 @@ steps:
     args:
       - "-c"
       - |
-        cd ./orign/stream/processors/ocr/easyocr && \
+        cd ./orign_runtime/stream/processors/ocr/easyocr && \
         docker buildx build \
           --platform linux/amd64 \
           -t us-docker.pkg.dev/$PROJECT_ID/orign/easyocr:latest \
@@ -86,7 +86,7 @@ steps:
     args:
       - "-c"
       - |
-        cd ./orign/stream/processors/chat/litellm && \
+        cd ./orign_runtime/stream/processors/chat/litellm && \
         docker buildx build \
           --platform linux/amd64 \
           -t us-docker.pkg.dev/$PROJECT_ID/orign/litellm:latest \

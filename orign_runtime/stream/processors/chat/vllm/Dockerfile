@@ -12,4 +12,4 @@ COPY . /app
 
 # Expose the port and specify the command
 EXPOSE 8080
-CMD ["poetry", "run", "python", "-m", "orign.stream.processors.chat.vllm.main"]
+CMD ["poetry", "run", "python", "-m", "orign_runtime.stream.processors.chat.vllm.main"]

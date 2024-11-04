@@ -2,8 +2,8 @@ from typing import Optional, List, AsyncIterator
 import websockets
 import json
 
-from orign.client.config import Config
-from orign.stream.models import (
+from orign_runtime.client.config import Config
+from orign_runtime.stream.models import (
     SamplingParams,
     ChatResponse,
     Prompt,

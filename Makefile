@@ -41,7 +41,7 @@ test-litellm:
 
 .PHONY: build-vllm
 build-vllm:
-	docker build --platform=linux/amd64 -f ./orign/stream/processors/chat/vllm/Dockerfile -t orign-vllm .
+	docker build --platform=linux/amd64 -f ./orign_runtime/stream/processors/chat/vllm/Dockerfile -t orign-vllm .
 
 .PHONY: run-redis
 run-redis:
