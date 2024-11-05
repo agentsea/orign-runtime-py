@@ -43,8 +43,8 @@ steps:
           --platform linux/amd64 \
           -t us-docker.pkg.dev/$PROJECT_ID/orign/sentence_tf:latest \
           -f Dockerfile \
-          --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/sentence_tf:buildcache \
-          --cache-to type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/sentence_tf:buildcache,mode=max \
+          --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/sentence-tf:buildcache \
+          --cache-to type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/sentence-tf:buildcache,mode=max \
           --push \
           .
 
