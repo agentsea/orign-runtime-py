@@ -16,17 +16,17 @@ steps:
         docker buildx create --name mybuilder --use
         docker buildx inspect --bootstrap
 
-  # Build and push for multiple architectures with caching
   - name: "gcr.io/cloud-builders/docker"
     id: Build and Push vllm
     entrypoint: "bash"
     args:
       - "-c"
       - |
+        cd ./orign_runtime/stream/processors/chat/vllm && \
         docker buildx build \
           --platform linux/amd64 \
           -t us-docker.pkg.dev/$PROJECT_ID/orign/vllm:latest \
-          -f ./orign_runtime/stream/processors/chat/vllm/Dockerfile \
+          -f Dockerfile \
           --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/vllm:buildcache \
           --cache-to type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/vllm:buildcache,mode=max \
           --push \
