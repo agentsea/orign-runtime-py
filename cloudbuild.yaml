@@ -41,7 +41,7 @@ steps:
         cd ./orign_runtime/stream/processors/embed/sentence_tf && \
         docker buildx build \
           --platform linux/amd64 \
-          -t us-docker.pkg.dev/$PROJECT_ID/orign/sentence_tf:latest \
+          -t us-docker.pkg.dev/$PROJECT_ID/orign/sentence-tf:latest \
           -f Dockerfile \
           --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/sentence-tf:buildcache \
           --cache-to type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/sentence-tf:buildcache,mode=max \
