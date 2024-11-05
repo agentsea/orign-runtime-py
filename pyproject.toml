@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "orign-runtime"
-version = "0.1.2"
+version = "0.1.3"
 description = "Python client for Orign"
 authors = ["Patrick Barker <patrickbarkerco@gmail.com>"]
 license = "MIT"
