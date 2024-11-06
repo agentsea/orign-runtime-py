@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, AsyncGenerator, Union, Type
 import traceback
 import asyncio
+import json
 
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
@@ -115,13 +116,21 @@ class Processor(ABC, Generic[I, O, C]):
                             print(
                                 f"Validation error for message {msg}: {e}\n{error_trace}"
                             )
+                            request_id = ""
+                            topic = "dead_letter"
+                            try:
+                                msg_dict = json.loads(msg["value"])
+                                request_id = msg_dict.get("request_id", "")
+                                topic = msg_dict.get("output_topic", "dead_letter")
+                            except Exception as e:
+                                print(f"Error getting request_id: {e}", flush=True)
+                                continue
                             error_response = ErrorResponse(
                                 type="ErrorResponse",
-                                request_id=msg["value"].get("request_id", ""),
+                                request_id=request_id,
                                 error=f"Validation error: {e}",
                                 traceback=error_trace,
                             )
-                            topic = msg["value"].get("output_topic", "default_topic")
                             await self.producer.produce(value=error_response, topic=topic)
 
                 if tasks:
