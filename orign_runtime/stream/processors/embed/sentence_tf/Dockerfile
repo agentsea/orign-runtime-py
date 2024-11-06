@@ -1,9 +1,9 @@
 FROM huggingface/transformers-pytorch-gpu:latest
 
-RUN pip install sentence-transformers orign-runtime
-
 COPY . /app
 
 WORKDIR /app
+
+RUN pip install sentence-transformers orign-runtime # $(date +%s)
 
 CMD ["python3", "main.py"]
