@@ -29,6 +29,7 @@ class LiteLLM(ChatModel[LiteLLMConfig]):
         model_list = []
         # Convert config.api_keys into model_list format
         for model_name, api_key in config.api_keys.items():
+            print(f"Loading model {model_name}")
             model_list.append({
                 "model_name": model_name,
                 "litellm_params": {
