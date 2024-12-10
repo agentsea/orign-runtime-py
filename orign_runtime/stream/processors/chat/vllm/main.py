@@ -1,9 +1,11 @@
 # main.py
-from typing import AsyncGenerator
+from typing import NamedTuple, Optional, List, AsyncGenerator
 import traceback
 import asyncio
 
-from vllm import AsyncLLMEngine, AsyncEngineArgs, SamplingParams as VLLMSamplingParams
+from PIL import Image
+from transformers import AutoTokenizer, AutoProcessor
+from vllm import AsyncLLMEngine, AsyncEngineArgs, SamplingParams as VLLMSamplingParams, LLM, SamplingParams
 from pydantic_settings import BaseSettings
 
 from orign_runtime.stream.util import open_image_from_input_async
@@ -16,14 +18,21 @@ from orign.models import (
     ErrorResponse,
     Choice,
 )
+from .fmt import MessageFormatter, Qwen2VLMessageFormatter, MolmoMessageFormatter, MODEL_FORMATTER_MAP, MODEL_TYPE_MAP
+
 
 class vLLMConfig(BaseSettings):
     model_name: str
+    model_type: Optional[str] = None
     trust_remote_code: bool = True
     tensor_parallel_size: int = 1
     dtype: str = "auto"
     max_images_per_prompt: int = 1
     device: str = "cuda"
+    gpu_memory_utilization: float = 0.9
+    max_model_len: int = 4096
+    max_num_seqs: int = 5
+    enforce_eager: bool = False
 
 
 class vLLM(ChatModel[vLLMConfig]):
@@ -32,17 +41,31 @@ class vLLM(ChatModel[vLLMConfig]):
     def load(self, config: vLLMConfig):
         self.config = config
 
+        if not config.model_type:
+            config.model_type = MODEL_TYPE_MAP.get(config.model_name, None)
+            if not config.model_type:
+                raise ValueError(f"Uknown model type for {config.model_name}, consider setting model_type explicitly")
+
         engine_args = AsyncEngineArgs(
             model=config.model_name,
             trust_remote_code=config.trust_remote_code,
             tensor_parallel_size=config.tensor_parallel_size,
             dtype=config.dtype,
             device=config.device,
+            gpu_memory_utilization=config.gpu_memory_utilization,
+            max_model_len=config.max_model_len,
+            max_num_seqs=config.max_num_seqs,
+            enforce_eager=config.enforce_eager,
         )
         if config.max_images_per_prompt != 1:
             engine_args.limit_mm_per_prompt = {
                 "image": config.max_images_per_prompt
             }
+
+        if config.model_type not in MODEL_FORMATTER_MAP:
+            raise ValueError(f"Model {config.model_type} not supported")
+
+        self.formatter = MODEL_FORMATTER_MAP[config.model_type]()
 
         self.engine = AsyncLLMEngine.from_engine_args(engine_args)
         print("Initialized AsyncLLMEngine", flush=True)
@@ -63,63 +86,15 @@ class vLLM(ChatModel[vLLMConfig]):
                 print(f"No prompt found in message item {idx}")
                 continue
 
-            prompt_text = ""
-            images = []
-
-            # Handle messages within the prompt
-            for msg_entry in prompt_item.messages:
-                if isinstance(msg_entry.content, str):
-                    prompt_text += msg_entry.content + "\n"
-                elif isinstance(msg_entry.content, list):
-                    for content_item in msg_entry.content:
-                        if content_item.type == "text" and content_item.text:
-                            prompt_text += content_item.text + "\n"
-                        elif (
-                            content_item.type == "image_url" and content_item.image_url
-                        ):
-                            try:
-                                image_url = content_item.image_url.url
-                                image = await open_image_from_input_async(image_url)
-                                print(f"Downloaded image from URL '{image_url}'")
-                                images.append(image)
-                            except Exception as e:
-                                print(f"Failed to load image: {e}")
-                                continue
-                        else:
-                            print(f"Unknown content item type: {content_item.type}")
-                elif isinstance(msg_entry.content, ContentItem):
-                    content_item = msg_entry.content
-                    if content_item.type == "text" and content_item.text:
-                        prompt_text += content_item.text + "\n"
-                    elif content_item.type == "image_url" and content_item.image_url:
-                        try:
-                            image_url = content_item.image_url.url
-                            image = await open_image_from_input_async(image_url)
-                            print(f"Downloaded image from URL '{image_url}'")
-                            images.append(image)
-                        except Exception as e:
-                            print(f"Failed to load image: {e}")
-                            continue
-                    elif content_item.type == "image_base64" and content_item.data:
-                        try:
-                            base64_data = content_item.data
-                            image = await open_image_from_input_async(base64_data)
-                            print("Decoded base64 image")
-                            images.append(image)
-                        except Exception as e:
-                            print(f"Failed to load image: {e}")
-                            continue
-                    else:
-                        print(f"Unknown content item type: {content_item.type}")
-                else:
-                    print(
-                        f"Unexpected content type in message: {type(msg_entry.content)}"
-                    )
+            model_request_data = await self.formatter.format(prompt_item)
+            print(f"\n!!Formatted prompt: {model_request_data}")
+            images = model_request_data.image_data
+            prompt_text = model_request_data.prompt
 
             if not prompt_text.strip():
                 print(f"No valid content found in message item {idx}")
                 continue
-
+    
             # Prepare multi_modal_data with the 'image' key
             multi_modal_data = {}
             if images:

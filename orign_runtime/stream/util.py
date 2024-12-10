@@ -21,8 +21,9 @@ async def open_image_from_input_async(input_str: str) -> Image.Image:
     Returns:
     Image.Image: The opened PIL Image object.
     """
+    print(f"\n\n!!!Opening image from input: {input_str}\n\n", flush=True)
     if input_str.startswith("data:image/"):
-        # It's a base64 image
+        # It's a base64 images
         header, encoded_data = input_str.split(",", 1)
         image_data = base64.b64decode(encoded_data)
         return Image.open(BytesIO(image_data)).convert("RGB")

@@ -7,7 +7,7 @@ import json
 
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
-from orign.models import ErrorResponse, ChatRequest, ChatResponse, TokenResponse, OCRRequest, OCRResponse, EmbeddingRequest, EmbeddingResponse
+from orign.models import ErrorResponse, ChatRequest, ChatResponse, TokenResponse, OCRRequest, OCRResponse, EmbeddingRequest, EmbeddingResponse, CompletionRequest, CompletionResponse
 
 from ..config import BaseConfig
 from ..queue.base import AsyncMessageProducer, AsyncMessageConsumer
@@ -161,6 +161,13 @@ ChatResponses = Union[ChatResponse, TokenResponse, ErrorResponse]
 class ChatModel(Processor[ChatRequest, ChatResponses, C], Generic[C]):
     def accepts(self) -> Type[ChatRequest]:
         return ChatRequest
+
+# ===== Completion Models =====
+CompletionResponses = Union[CompletionResponse, TokenResponse, ErrorResponse]
+
+class CompletionModel(Processor[CompletionRequest, CompletionResponses, C], Generic[C]):
+    def accepts(self) -> Type[CompletionRequest]:
+        return CompletionRequest
 
 # ===== OCR Models =====
 OCRResponses = Union[OCRResponse, ErrorResponse]

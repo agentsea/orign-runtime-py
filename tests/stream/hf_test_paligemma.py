@@ -10,11 +10,12 @@ import time
 # Redis configuration
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
-INPUT_STREAM = f"test1,allenai/Molmo-7B-D-0924-{int(time.time())}"
+INPUT_STREAM = f"test1,google/paligemma2-3b-pt-896-{int(time.time())}"
 USER_EMAIL = "tom@myspace.com"
 OUTPUT_STREAM = f"chat_results:{USER_EMAIL}:{INPUT_STREAM}-{int(time.time())}"
 GROUP_NAME = "test_consumer_group_vllm"
-MODEL = "allenai/Molmo-7B-D-0924"
+MODEL = "google/paligemma2-3b-pt-896"
+MODEL_TYPE = "paligemma2"
 INPUT_STREAM_GOOD = INPUT_STREAM.split(",")[1]
 
 # Redis configuration dictionary
@@ -74,14 +75,13 @@ def start_main_process():
     env_vars["QUEUE_INPUT_TOPICS"] = INPUT_STREAM
     env_vars["QUEUE_GROUP_ID"] = GROUP_NAME
     env_vars["MODEL_NAME"] = MODEL
+    env_vars["MODEL_TYPE"] = MODEL_TYPE
     env_vars["DEVICE"] = "cuda"
     env_vars["DEBUG"] = "true"
-    env_vars["VLLM_DISABLE_PROMETHEUS"] = "true"
-    env_vars["MAX_IMAGES_PER_PROMPT"] = "1"
     env_vars["ACCEPTS"] = "text,image"
     
     process = subprocess.Popen(
-        [sys.executable, "-m", "orign_runtime.stream.processors.chat.vllm.main"],
+        [sys.executable, "-m", "orign_runtime.stream.processors.chat.hf.main"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=env_vars,
@@ -139,7 +139,7 @@ def test_main(start_main_process):
     r = redis.Redis(**redis_conf)
 
     # Produce test messages to the input stream
-    num_messages = 2
+    num_messages = 3
     for i in range(num_messages):
         msg_dict = {
             "model": MODEL,
@@ -149,11 +149,17 @@ def test_main(start_main_process):
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": "What’s in this image?"},
+                                {"type": "text", "text": "What are in these images?"},
                                 {
                                     "type": "image_url",
                                     "image_url": {
                                         "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
+                                    },
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": "https://cdn.britannica.com/51/94151-050-99189B61/Barn.jpg",
                                     },
                                 },
                             ],
