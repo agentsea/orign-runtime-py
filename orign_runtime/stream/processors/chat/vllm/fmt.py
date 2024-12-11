@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import NamedTuple, Optional, List
 
-from .qwen_vision import process_vision_info, fetch_image, extract_vision_info
+from orign_runtime.stream.processors.chat.vllm.qwen_vision import process_vision_info, fetch_image, extract_vision_info
 from orign.models import ChatRequest, Prompt
 from transformers import AutoTokenizer, AutoProcessor
 from PIL import Image

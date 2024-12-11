@@ -18,7 +18,7 @@ from orign.models import (
     ErrorResponse,
     Choice,
 )
-from .fmt import MessageFormatter, Qwen2VLMessageFormatter, MolmoMessageFormatter, MODEL_FORMATTER_MAP, MODEL_TYPE_MAP
+from orign_runtime.stream.processors.chat.vllm.fmt import MessageFormatter, Qwen2VLMessageFormatter, MolmoMessageFormatter, MODEL_FORMATTER_MAP, MODEL_TYPE_MAP
 
 
 class vLLMConfig(BaseSettings):
