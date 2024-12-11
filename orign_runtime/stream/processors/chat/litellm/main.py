@@ -67,10 +67,11 @@ class LiteLLM(ChatModel[LiteLLMConfig]):
                     
                 # Convert messages format if needed
                 messages = prompt_item.messages if prompt_item else []
+                messages_fmt = [message.model_dump(exclude_none=True) for message in messages]
                 
                 response = await self.router.acompletion(
                     model=msg.model or list(self.config.api_keys.keys())[0],
-                    messages=[{"role": m.role, "content": m.content} for m in messages],
+                    messages=messages_fmt,
                     temperature=msg.sampling_params.temperature,
                     max_tokens=msg.max_tokens,
                     n=msg.sampling_params.n,

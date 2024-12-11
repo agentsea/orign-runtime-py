@@ -106,6 +106,8 @@ class Processor(ABC, Generic[I, O, C]):
                         try:
                             # Validate the incoming message
                             message = schema.model_validate_json(msg["value"])
+
+                            # message = schema.model_validate_json(msg["value"])
                             # Create a task to process the message with semaphore limit
                             task = asyncio.create_task(
                                 self._sem_process_message(msg=message)
