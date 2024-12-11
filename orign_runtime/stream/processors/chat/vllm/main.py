@@ -30,7 +30,7 @@ class vLLMConfig(BaseSettings):
     max_images_per_prompt: int = 1
     device: str = "cuda"
     gpu_memory_utilization: float = 0.9
-    max_model_len: int = 4096
+    max_model_len: int = 8192
     max_num_seqs: int = 5
     enforce_eager: bool = False
 

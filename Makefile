@@ -15,7 +15,7 @@ test-qwen:
 test-vllm:
 	poetry run pytest -s -vvv tests/stream/vllm_test.py
 
-.PHONY: test-vllm-redis
+.PHONY: test-vllm-redis-qwen
 test-vllm-redis-qwen:
 	poetry run pytest -s -vvv tests/stream/vllm_test_redis_qwen.py
 

@@ -153,19 +153,21 @@ def test_main(start_main_process):
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": "What are in these images?"},
+                                {"type": "text", "text": "This is my first image"},
                                 {
                                     "type": "image_url",
                                     "image_url": {
                                         "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
                                     },
                                 },
+                                {"type": "text", "text": "This is my second image"},
                                 {
                                     "type": "image_url",
                                     "image_url": {
                                         "url": "https://cdn.britannica.com/51/94151-050-99189B61/Barn.jpg",
                                     },
                                 },
+                                {"type": "text", "text": "what are in these images?"},
                             ],
                         },
                     ],
