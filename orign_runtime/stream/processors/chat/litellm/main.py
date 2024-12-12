@@ -3,7 +3,7 @@ from typing import AsyncGenerator, Dict, Optional, List
 import asyncio
 
 from pydantic_settings import BaseSettings
-from litellm import Router
+import litellm
 
 from orign_runtime.stream.util import open_image_from_input_async
 from orign_runtime.stream.processors.base_aio import ChatModel, ChatResponses
@@ -15,44 +15,16 @@ from orign.models import (
     Choice,
 )
 
+litellm.drop_params = True
+
 class LiteLLMConfig(BaseSettings):
-    api_keys: Dict[str, str]
-    preference: Optional[List[str]] = None
+    pass
 
 
 class LiteLLM(ChatModel[LiteLLMConfig]):
     """LiteLLM backend"""
 
     def load(self, config: LiteLLMConfig):
-        self.config = config
-        
-        model_list = []
-        # Convert config.api_keys into model_list format
-        for model_name, api_key in config.api_keys.items():
-            print(f"Loading model {model_name}")
-            model_list.append({
-                "model_name": model_name,
-                "litellm_params": {
-                    "model": model_name,
-                    "api_key": api_key,
-                }
-            })
-
-        # Convert preference list into fallbacks format
-        fallbacks = None
-        if config.preference:
-            fallbacks = []
-            for i in range(len(config.preference) - 1):
-                fallbacks.append({
-                    config.preference[i]: [config.preference[i + 1]]
-                })
-
-        self.router = Router(
-            model_list=model_list,
-            fallbacks=fallbacks,
-            enable_pre_call_checks=True
-        )
-        
         print("Initialized AsyncLLMEngine", flush=True)
 
     async def process(self, msg: ChatRequest) -> AsyncGenerator[ChatResponses, None]:
@@ -68,15 +40,19 @@ class LiteLLM(ChatModel[LiteLLMConfig]):
                 # Convert messages format if needed
                 messages = prompt_item.messages if prompt_item else []
                 messages_fmt = [message.model_dump(exclude_none=True) for message in messages]
-                
-                response = await self.router.acompletion(
-                    model=msg.model or list(self.config.api_keys.keys())[0],
+
+                model = msg.model or list(self.config.api_keys.keys())[0]
+                print(f"Using model {model}", flush=True)
+
+                response = await litellm.acompletion(
+                    model=model,
                     messages=messages_fmt,
                     temperature=msg.sampling_params.temperature,
                     max_tokens=msg.max_tokens,
                     n=msg.sampling_params.n,
                     stream=msg.stream
                 )
+                print(f"Response: {response}", flush=True)
 
                 if msg.stream:
                     async for chunk in response:

@@ -14,7 +14,7 @@ INPUT_STREAM = f"test1,gpt-4o-{int(time.time())}"
 USER_EMAIL = "tom@myspace.com"
 OUTPUT_STREAM = f"chat_results:{USER_EMAIL}:{INPUT_STREAM}-{int(time.time())}"
 GROUP_NAME = "test_consumer_group_litellm"
-MODEL = "gpt-4o"
+MODEL = "anthropic/claude-3-5-sonnet-20240620"
 INPUT_STREAM_GOOD = INPUT_STREAM.split(",")[1]
 
 # Redis configuration dictionary
@@ -77,8 +77,8 @@ def start_main_process():
     env_vars["DEVICE"] = "cuda"
     env_vars["DEBUG"] = "true"
     env_vars["ACCEPTS"] = "text,image"
-    env_vars["API_KEYS"] = json.dumps({"gpt-4o": os.getenv("OPENAI_API_KEY")})
-    env_vars["PREFERENCE"] = json.dumps(["gpt-4o"])
+    env_vars["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+    env_vars["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY")
     
     process = subprocess.Popen(
         [sys.executable, "-m", "orign_runtime.stream.processors.chat.litellm.main"],
@@ -149,12 +149,19 @@ def test_main(start_main_process):
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": "What’s in this image?"},
+                                {"type": "text", "text": "Can you describe both of these images?"},
                                 {
                                     "type": "image_url",
                                     "text": None,
                                     "image_url": {
                                         "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
+                                    },
+                                },
+                                {
+                                    "type": "image_url",
+                                    "text": None,
+                                    "image_url": {
+                                        "url": "https://cdn.britannica.com/51/94151-050-99189B61/Barn.jpg",
                                     },
                                 },
                             ],
@@ -178,7 +185,7 @@ def test_main(start_main_process):
                     ]
                 },
             ],
-            "max_tokens": 50,
+            "max_tokens": 500,
             "sampling_params": {
                 "n": 4,
                 "top_k": 5,
