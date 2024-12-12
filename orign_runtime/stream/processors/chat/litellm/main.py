@@ -41,11 +41,13 @@ class LiteLLM(ChatModel[LiteLLMConfig]):
                 messages = prompt_item.messages if prompt_item else []
                 messages_fmt = [message.model_dump(exclude_none=True) for message in messages]
 
-                model = msg.model or list(self.config.api_keys.keys())[0]
+                if not msg.model:
+                    raise ValueError("Model is required")
+
                 print(f"Using model {model}", flush=True)
 
                 response = await litellm.acompletion(
-                    model=model,
+                    model=msg.model,
                     messages=messages_fmt,
                     temperature=msg.sampling_params.temperature,
                     max_tokens=msg.max_tokens,
