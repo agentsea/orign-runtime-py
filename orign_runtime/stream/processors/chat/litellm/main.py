@@ -29,58 +29,51 @@ class LiteLLM(ChatModel[LiteLLMConfig]):
 
     async def process(self, msg: ChatRequest) -> AsyncGenerator[ChatResponses, None]:
         """Process a single message using the LiteLLM engine."""
-        try:
-            # Handle batch requests
-            batch_items = msg.batch if msg.batch is not None else [msg.prompt]
-            
-            for prompt_item in batch_items:
-                if prompt_item is None:
-                    continue
-                    
-                # Convert messages format if needed
-                messages = prompt_item.messages if prompt_item else []
-                messages_fmt = [message.model_dump(exclude_none=True) for message in messages]
+        # Handle batch requests
+        batch_items = msg.batch if msg.batch is not None else [msg.prompt]
+        
+        for prompt_item in batch_items:
+            if prompt_item is None:
+                continue
+                
+            # Convert messages format if needed
+            messages = prompt_item.messages if prompt_item else []
+            messages_fmt = [message.model_dump(exclude_none=True) for message in messages]
 
-                if not msg.model:
-                    raise ValueError("Model is required")
+            if not msg.model:
+                raise ValueError("Model is required")
 
-                print(f"Using model {model}", flush=True)
+            print(f"Using model {msg.model}", flush=True)
 
-                response = await litellm.acompletion(
-                    model=msg.model,
-                    messages=messages_fmt,
-                    temperature=msg.sampling_params.temperature,
-                    max_tokens=msg.max_tokens,
-                    n=msg.sampling_params.n,
-                    stream=msg.stream
-                )
-                print(f"Response: {response}", flush=True)
+            response = await litellm.acompletion(
+                model=msg.model,
+                messages=messages_fmt,
+                temperature=msg.sampling_params.temperature,
+                max_tokens=msg.max_tokens,
+                n=msg.sampling_params.n,
+                stream=msg.stream
+            )
+            print(f"Response: {response}", flush=True)
 
-                if msg.stream:
-                    async for chunk in response:
-                        yield TokenResponse(
-                            request_id=msg.request_id,
-                            choices=[Choice(
-                                index=0,
-                                text=chunk.choices[0].delta.content or "",
-                                finish_reason=chunk.choices[0].finish_reason
-                            )]
-                        )
-                else:
-                    yield ChatResponse(
+            if msg.stream:
+                async for chunk in response:
+                    yield TokenResponse(
                         request_id=msg.request_id,
                         choices=[Choice(
-                            index=choice.index,
-                            text=choice.message.content,
-                            finish_reason=choice.finish_reason
-                        ) for choice in response.choices]
+                            index=0,
+                            text=chunk.choices[0].delta.content or "",
+                            finish_reason=chunk.choices[0].finish_reason
+                        )]
                     )
-
-        except Exception as e:
-            yield ErrorResponse(
-                request_id=msg.request_id,
-                error=str(e)
-            )
+            else:
+                yield ChatResponse(
+                    request_id=msg.request_id,
+                    choices=[Choice(
+                        index=choice.index,
+                        text=choice.message.content,
+                        finish_reason=choice.finish_reason
+                    ) for choice in response.choices]
+                )
 
 
 if __name__ == "__main__":

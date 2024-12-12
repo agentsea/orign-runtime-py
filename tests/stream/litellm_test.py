@@ -14,7 +14,7 @@ INPUT_STREAM = f"test1,gpt-4o-{int(time.time())}"
 USER_EMAIL = "tom@myspace.com"
 OUTPUT_STREAM = f"chat_results:{USER_EMAIL}:{INPUT_STREAM}-{int(time.time())}"
 GROUP_NAME = "test_consumer_group_litellm"
-MODEL = "anthropic/claude-3-5-sonnet-20240620"
+MODEL = "gpt-4o"
 INPUT_STREAM_GOOD = INPUT_STREAM.split(",")[1]
 
 # Redis configuration dictionary
