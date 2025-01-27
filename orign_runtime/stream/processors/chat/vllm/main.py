@@ -220,8 +220,6 @@ class vLLM(ChatModel[vLLMConfig]):
         """Process a single prompt and handle streaming or non-streaming output."""
 
         print(f"Processing prompt for request_id {request_id}")
-        # TODO: should this be add_request?
-        self.engine.add_request()
         generator = self.engine.generate(
             prompt=prompt,
             sampling_params=sampling_params,
