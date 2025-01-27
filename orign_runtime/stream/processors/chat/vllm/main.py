@@ -103,7 +103,10 @@ class vLLM(ChatModel[vLLMConfig]):
                     f"Checking authorization against org '{msg.organizations}' and handle '{msg.handle}'",
                     flush=True,
                 )
-                if namespace not in msg.organizations and namespace != msg.handle:
+                if (
+                    namespace not in msg.organizations.keys()
+                    and namespace != msg.handle
+                ):
                     raise ValueError(
                         f"Adapter {msg.adapter} is not authorized for this request"
                     )
