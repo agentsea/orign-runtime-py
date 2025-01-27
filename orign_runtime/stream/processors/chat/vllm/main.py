@@ -1,24 +1,34 @@
 # main.py
-from typing import NamedTuple, Optional, List, AsyncGenerator
-import traceback
 import asyncio
+import os
+import traceback
+from typing import AsyncGenerator, List, NamedTuple, Optional
 
-from PIL import Image
-from transformers import AutoTokenizer, AutoProcessor
-from vllm import AsyncLLMEngine, AsyncEngineArgs, SamplingParams as VLLMSamplingParams, LLM, SamplingParams
-from pydantic_settings import BaseSettings
-
-from orign_runtime.stream.util import open_image_from_input_async
-from orign_runtime.stream.processors.base_aio import ChatModel, ChatResponses
+import yaml
 from orign.models import (
     ChatRequest,
-    ContentItem,
     ChatResponse,
-    TokenResponse,
-    ErrorResponse,
     Choice,
+    ContentItem,
+    ErrorResponse,
+    TokenResponse,
 )
-from orign_runtime.stream.processors.chat.vllm.fmt import MessageFormatter, Qwen2VLMessageFormatter, MolmoMessageFormatter, MODEL_FORMATTER_MAP, MODEL_TYPE_MAP
+from PIL import Image
+from pydantic_settings import BaseSettings
+from transformers import AutoProcessor, AutoTokenizer
+from vllm import LLM, AsyncEngineArgs, AsyncLLMEngine, SamplingParams
+from vllm import SamplingParams as VLLMSamplingParams
+from vllm.lora.request import LoRARequest
+
+from orign_runtime.stream.processors.base_aio import ChatModel, ChatResponses
+from orign_runtime.stream.processors.chat.vllm.fmt import (
+    MODEL_FORMATTER_MAP,
+    MODEL_TYPE_MAP,
+    MessageFormatter,
+    MolmoMessageFormatter,
+    Qwen2VLMessageFormatter,
+)
+from orign_runtime.stream.util import open_image_from_input_async
 
 
 class vLLMConfig(BaseSettings):
@@ -44,7 +54,9 @@ class vLLM(ChatModel[vLLMConfig]):
         if not config.model_type:
             config.model_type = MODEL_TYPE_MAP.get(config.model_name, None)
             if not config.model_type:
-                raise ValueError(f"Uknown model type for {config.model_name}, consider setting model_type explicitly")
+                raise ValueError(
+                    f"Uknown model type for {config.model_name}, consider setting model_type explicitly"
+                )
 
         engine_args = AsyncEngineArgs(
             model=config.model_name,
@@ -56,11 +68,10 @@ class vLLM(ChatModel[vLLMConfig]):
             max_model_len=config.max_model_len,
             max_num_seqs=config.max_num_seqs,
             enforce_eager=config.enforce_eager,
+            enable_lora=True,
         )
         if config.max_images_per_prompt != 1:
-            engine_args.limit_mm_per_prompt = {
-                "image": config.max_images_per_prompt
-            }
+            engine_args.limit_mm_per_prompt = {"image": config.max_images_per_prompt}
 
         if config.model_type not in MODEL_FORMATTER_MAP:
             raise ValueError(f"Model {config.model_type} not supported")
@@ -76,6 +87,56 @@ class vLLM(ChatModel[vLLMConfig]):
         print(f"Processing message for request_id {msg.request_id}", flush=True)
         if not msg.request_id:
             raise ValueError("No request_id found in message")
+
+        lora_request: Optional[LoRARequest] = None
+        print(f"Checking for adapter in message: {msg.adapter}", flush=True)
+        if msg.adapter:
+            adapter_name = msg.adapter
+            adapter_parts = msg.adapter.split("/")
+            print(f"Adapter parts: {adapter_parts}", flush=True)
+
+            if len(adapter_parts) == 2:
+                namespace = adapter_parts[0]
+                name = adapter_parts[1]
+                print(f"Found namespace '{namespace}' and name '{name}'", flush=True)
+                print(
+                    f"Checking authorization against org '{msg.organization}' and handle '{msg.handle}'",
+                    flush=True,
+                )
+                if namespace != msg.organization and namespace != msg.handle:
+                    raise ValueError(
+                        f"Adapter {msg.adapter} is not authorized for this request"
+                    )
+                adapter_name = f"{namespace}/{name}"
+            elif len(adapter_parts) == 1:
+                name = adapter_parts[0]
+                namespace = msg.handle
+                if msg.organization:
+                    namespace = msg.organization
+                print(
+                    f"Single part adapter, using namespace '{namespace}' and name '{name}'",
+                    flush=True,
+                )
+                adapter_name = f"{namespace}/{name}"
+            else:
+                print(
+                    f"Invalid adapter format with {len(adapter_parts)} parts",
+                    flush=True,
+                )
+                raise ValueError(f"Invalid adapter name: {msg.adapter}")
+
+            adapter_base_path = os.path.join("/adapters", adapter_name)
+            orign_file_path = os.path.join(adapter_base_path, "orign.yaml")
+            print(f"Looking for adapter config at: {orign_file_path}", flush=True)
+
+            # TODO: redis
+            with open(orign_file_path, "r") as f:
+                orign_config = yaml.safe_load(f)
+                lora_path = orign_config["latest_checkpoint"]
+                print(f"Found LoRA checkpoint at: {lora_path}", flush=True)
+
+            lora_request = LoRARequest(msg.adapter, 1, lora_path)
+            print(f"Created LoRA request: {lora_request}", flush=True)
 
         # Prepare the prompts and multimodal data
         prompts = []
@@ -94,7 +155,7 @@ class vLLM(ChatModel[vLLMConfig]):
             if not prompt_text.strip():
                 print(f"No valid content found in message item {idx}")
                 continue
-    
+
             # Prepare multi_modal_data with the 'image' key
             multi_modal_data = {}
             if images:
@@ -135,6 +196,7 @@ class vLLM(ChatModel[vLLMConfig]):
                     vllm_sampling_params,
                     msg.request_id,
                     msg.stream,
+                    lora_request,
                 ):
                     yield response
             except Exception as e:
@@ -153,14 +215,18 @@ class vLLM(ChatModel[vLLMConfig]):
         sampling_params: VLLMSamplingParams,
         request_id: str,
         stream: bool,
+        lora_request: Optional[LoRARequest] = None,
     ):
         """Process a single prompt and handle streaming or non-streaming output."""
 
         print(f"Processing prompt for request_id {request_id}")
+        # TODO: should this be add_request?
+        self.engine.add_request()
         generator = self.engine.generate(
             prompt=prompt,
             sampling_params=sampling_params,
             request_id=request_id,
+            lora_request=lora_request,
         )
 
         if stream:
@@ -293,7 +359,6 @@ class vLLM(ChatModel[vLLMConfig]):
             # Send the final response
             yield response
             print(f"Sent final response for request_id {request_id}")
-
 
 
 if __name__ == "__main__":

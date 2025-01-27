@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "orign-runtime"
-version = "0.1.10"
+version = "0.1.11"
 description = "Python runtime for Orign"
 authors = ["Patrick Barker <patrickbarkerco@gmail.com>"]
 license = "MIT"
@@ -15,10 +15,10 @@ redis = "^5.2.0"
 pydantic = "^2.9.2"
 pydantic-settings = "^2.6.1"
 qwen-vl-utils = "^0.0.8"
-orign = "^0.1.12"
 opentelemetry-api = "^1.28.2"
 opentelemetry-sdk = "^1.28.2"
 opentelemetry-exporter-otlp = "^1.28.2"
+orign = "^0.1.18"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
@@ -49,6 +49,13 @@ sentence-transformers = "^3.2.1"
 
 [tool.poetry.group.litellm.dependencies]
 litellm = "^1.51.3"
+
+[tool.pyright]
+reportUnknownParameterType = false
+reportMissingTypeArgument = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
 
 [build-system]
 requires = ["poetry-core"]
