@@ -135,7 +135,8 @@ class vLLM(ChatModel[vLLMConfig]):
                 lora_path = orign_config["latest_checkpoint"]
                 print(f"Found LoRA checkpoint at: {lora_path}", flush=True)
 
-            lora_request = LoRARequest(msg.adapter, 1, lora_path)
+            # is this adapter right?
+            lora_request = LoRARequest(msg.adapter, hash(lora_path), lora_path)
             print(f"Created LoRA request: {lora_request}", flush=True)
 
         # Prepare the prompts and multimodal data
@@ -254,6 +255,7 @@ class vLLM(ChatModel[vLLMConfig]):
 
                     # Calculate new tokens
                     new_tokens = []
+
                     if hasattr(output, "tokens") and output.tokens is not None:
                         new_tokens = output.tokens[choice_data["last_token_index"] :]
                         choice_data["tokens"].extend(new_tokens)
