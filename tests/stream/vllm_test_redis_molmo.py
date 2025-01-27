@@ -1,14 +1,14 @@
 import json
-import time
+import os
 import subprocess
 import sys
-import os
-import pytest
-import redis
 import time
 
+import pytest
+import redis
+
 # Redis configuration
-REDIS_HOST = 'localhost'
+REDIS_HOST = "localhost"
 REDIS_PORT = 6379
 INPUT_STREAM = f"test1,allenai/Molmo-7B-D-0924-{int(time.time())}"
 USER_EMAIL = "tom@myspace.com"
@@ -24,11 +24,12 @@ redis_conf = {
     "port": REDIS_PORT,
 }
 
+
 @pytest.fixture(scope="module", autouse=True)
 def setup_redis_streams():
     # Connect to Redis
     r = redis.Redis(**redis_conf)
-    
+
     try:
         r.delete(INPUT_STREAM_GOOD)
         r.delete(OUTPUT_STREAM)
@@ -37,18 +38,22 @@ def setup_redis_streams():
 
     # Create input and output streams with consumer groups
     try:
-        r.xgroup_create(INPUT_STREAM_GOOD, GROUP_NAME, id='0', mkstream=True)
+        r.xgroup_create(INPUT_STREAM_GOOD, GROUP_NAME, id="0", mkstream=True)
     except redis.exceptions.ResponseError as e:
-        if 'BUSYGROUP' in str(e):
-            print(f"Consumer group {GROUP_NAME} already exists for stream {INPUT_STREAM_GOOD}")
+        if "BUSYGROUP" in str(e):
+            print(
+                f"Consumer group {GROUP_NAME} already exists for stream {INPUT_STREAM_GOOD}"
+            )
         else:
             raise
 
     try:
-        r.xgroup_create(OUTPUT_STREAM, GROUP_NAME, id='0', mkstream=True)
+        r.xgroup_create(OUTPUT_STREAM, GROUP_NAME, id="0", mkstream=True)
     except redis.exceptions.ResponseError as e:
-        if 'BUSYGROUP' in str(e):
-            print(f"Consumer group {GROUP_NAME} already exists for stream {OUTPUT_STREAM}")
+        if "BUSYGROUP" in str(e):
+            print(
+                f"Consumer group {GROUP_NAME} already exists for stream {OUTPUT_STREAM}"
+            )
         else:
             raise
 
@@ -61,10 +66,12 @@ def setup_redis_streams():
     except:
         pass
 
+
 @pytest.fixture(scope="module")
 def start_main_process():
     import threading
-    from colorama import init, Fore, Style
+
+    from colorama import Fore, Style, init
 
     # Initialize colorama
     init(autoreset=True)
@@ -81,7 +88,7 @@ def start_main_process():
     env_vars["VLLM_DISABLE_PROMETHEUS"] = "true"
     env_vars["MAX_IMAGES_PER_PROMPT"] = "1"
     env_vars["ACCEPTS"] = "text,image"
-    
+
     process = subprocess.Popen(
         [sys.executable, "-m", "orign_runtime.stream.processors.chat.vllm.main"],
         stdout=subprocess.PIPE,
@@ -96,7 +103,7 @@ def start_main_process():
         while True:
             line = process.stdout.readline()
             if line:
-                print(f"{Fore.GREEN}[Server STDOUT]{Style.RESET_ALL} {line}", end='')
+                print(f"{Fore.GREEN}[Server STDOUT]{Style.RESET_ALL} {line}", end="")
             else:
                 if process.poll() is not None:
                     break
@@ -106,7 +113,7 @@ def start_main_process():
         while True:
             line = process.stderr.readline()
             if line:
-                print(f"{Fore.RED}[Server STDERR]{Style.RESET_ALL} {line}", end='')
+                print(f"{Fore.RED}[Server STDERR]{Style.RESET_ALL} {line}", end="")
             else:
                 if process.poll() is not None:
                     break
@@ -172,10 +179,7 @@ def test_main(start_main_process):
                 },
                 {
                     "messages": [
-                        {
-                            "role": "user",
-                            "content": "What's the capital of Germany?"
-                        }
+                        {"role": "user", "content": "What's the capital of Germany?"}
                     ]
                 },
             ],
@@ -187,9 +191,11 @@ def test_main(start_main_process):
             },
             "request_id": str(i),
             "output_topic": OUTPUT_STREAM,
+            "handle": "test_handle",
+            "organizations": ["test_org"],
         }
         msg = json.dumps(msg_dict)
-        r.xadd(INPUT_STREAM_GOOD, {'message': msg})
+        r.xadd(INPUT_STREAM_GOOD, {"message": msg})
 
     # Consume and verify output messages from the output stream
     received_messages = 0
@@ -200,7 +206,9 @@ def test_main(start_main_process):
     while received_messages < expected_messages:
         print("Polling Redis consumer", flush=True)
         try:
-            messages = r.xreadgroup(GROUP_NAME, "test_consumer", {OUTPUT_STREAM: '>'}, count=1, block=1000)
+            messages = r.xreadgroup(
+                GROUP_NAME, "test_consumer", {OUTPUT_STREAM: ">"}, count=1, block=1000
+            )
         except redis.exceptions.ResponseError as e:
             print(f"Redis error: {e}")
             continue
@@ -210,13 +218,18 @@ def test_main(start_main_process):
             pytest.fail("Test timed out")
             break
 
-        print("Messages expected: ", expected_messages, "Messages received: ", received_messages)
+        print(
+            "Messages expected: ",
+            expected_messages,
+            "Messages received: ",
+            received_messages,
+        )
         if not messages:
             continue
 
         for stream_name, entries in messages:
             for msg_id, msg_data in entries:
-                payload = msg_data[b'message'].decode('utf-8')
+                payload = msg_data[b"message"].decode("utf-8")
                 print(f"Received message payload: {payload}", flush=True)
                 output_data = json.loads(payload)
                 print(f"Received output message: {output_data}", flush=True)
@@ -234,9 +247,13 @@ def test_main(start_main_process):
                     assert "choices" in output_data
 
                     received_messages += 1
-                    print(f"Received message {received_messages} of {expected_messages}")
+                    print(
+                        f"Received message {received_messages} of {expected_messages}"
+                    )
                 else:
-                    print(f"Received unexpected message type: {output_data.get('type')}")
+                    print(
+                        f"Received unexpected message type: {output_data.get('type')}"
+                    )
 
                 # Acknowledge the message
                 r.xack(OUTPUT_STREAM, GROUP_NAME, msg_id)
@@ -247,7 +264,13 @@ def test_main(start_main_process):
             pytest.fail("Test timed out")
             break
 
-    print("Closing Redis consumer... total received messages: ", received_messages, " expected messages: ", expected_messages, flush=True)
+    print(
+        "Closing Redis consumer... total received messages: ",
+        received_messages,
+        " expected messages: ",
+        expected_messages,
+        flush=True,
+    )
     time.sleep(10)
 
     print("\n====\nResults\n====\n ", flush=True)

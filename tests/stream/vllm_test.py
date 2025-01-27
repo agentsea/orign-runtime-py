@@ -1,12 +1,12 @@
 # test_main.py
 import json
-import time
+import os
 import subprocess
 import sys
-import os
-import pytest
+import time
 
-from confluent_kafka import Producer, Consumer
+import pytest
+from confluent_kafka import Consumer, Producer
 from confluent_kafka.admin import AdminClient, NewTopic
 
 # Kafka configuration
@@ -64,7 +64,8 @@ def setup_kafka_topics():
 @pytest.fixture(scope="module")
 def start_main_process():
     import threading
-    from colorama import init, Fore, Style
+
+    from colorama import Fore, Style, init
 
     # Initialize colorama
     init(autoreset=True)
@@ -91,7 +92,7 @@ def start_main_process():
         while True:
             line = process.stdout.readline()
             if line:
-                print(f"{Fore.GREEN}[Server STDOUT]{Style.RESET_ALL} {line}", end='')
+                print(f"{Fore.GREEN}[Server STDOUT]{Style.RESET_ALL} {line}", end="")
             else:
                 if process.poll() is not None:
                     break
@@ -101,7 +102,7 @@ def start_main_process():
         while True:
             line = process.stderr.readline()
             if line:
-                print(f"{Fore.RED}[Server STDERR]{Style.RESET_ALL} {line}", end='')
+                print(f"{Fore.RED}[Server STDERR]{Style.RESET_ALL} {line}", end="")
             else:
                 if process.poll() is not None:
                     break
@@ -189,10 +190,7 @@ def test_main(start_main_process):
                 },
                 {
                     "messages": [
-                        {
-                            "role": "user",
-                            "content": "What's the capital of Germany?"
-                        }
+                        {"role": "user", "content": "What's the capital of Germany?"}
                     ]
                 },
             ],
@@ -203,6 +201,8 @@ def test_main(start_main_process):
                 "logprobs": 5,
             },
             "request_id": str(i),
+            "handle": "test_handle",
+            "organizations": ["test_org"],
         }
         msg = json.dumps(msg_dict)
         producer.produce(INPUT_TOPIC, msg.encode("utf-8"))
@@ -224,7 +224,12 @@ def test_main(start_main_process):
             pytest.fail("Test timed out")
             break
 
-        print("messages expected: ", expected_messages, "messages received: ", received_messages)
+        print(
+            "messages expected: ",
+            expected_messages,
+            "messages received: ",
+            received_messages,
+        )
         if msg is None:
             continue
         if msg.error():
@@ -257,8 +262,14 @@ def test_main(start_main_process):
             print("Test timed out")
             pytest.fail("Test timed out")
             break
-    
-    print("Closing consumer... total recieved messages: ", received_messages, " expected messages: ", expected_messages, flush=True)
+
+    print(
+        "Closing consumer... total recieved messages: ",
+        received_messages,
+        " expected messages: ",
+        expected_messages,
+        flush=True,
+    )
     time.sleep(10)
     consumer.close()
 
@@ -272,4 +283,3 @@ def test_main(start_main_process):
     ), f"Expected {expected_messages} messages, got {received_messages}"
 
     print("\n\nValidation passed! ignore any further errors\n")
-
