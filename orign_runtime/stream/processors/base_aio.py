@@ -1,16 +1,27 @@
 # base_aio.py
-from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, AsyncGenerator, Union, Type
-import traceback
 import asyncio
 import json
+import traceback
+from abc import ABC, abstractmethod
+from typing import AsyncGenerator, Generic, Type, TypeVar, Union
 
+from orign.models import (
+    ChatRequest,
+    ChatResponse,
+    CompletionRequest,
+    CompletionResponse,
+    EmbeddingRequest,
+    EmbeddingResponse,
+    ErrorResponse,
+    OCRRequest,
+    OCRResponse,
+    TokenResponse,
+)
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
-from orign.models import ErrorResponse, ChatRequest, ChatResponse, TokenResponse, OCRRequest, OCRResponse, EmbeddingRequest, EmbeddingResponse, CompletionRequest, CompletionResponse
 
 from ..config import BaseConfig
-from ..queue.base import AsyncMessageProducer, AsyncMessageConsumer
+from ..queue.base import AsyncMessageConsumer, AsyncMessageProducer
 from ..queue.factory import get_message_consumer_async, get_message_producer_async
 
 # Input/Output
@@ -40,7 +51,7 @@ class Processor(ABC, Generic[I, O, C]):
     async def process(self, msg: I) -> AsyncGenerator[O, None]:
         """Process a single message from the consumer."""
         pass
-    
+
     @abstractmethod
     def accepts(self) -> Type[I]:
         """The type accepted by the processor."""
@@ -53,7 +64,7 @@ class Processor(ABC, Generic[I, O, C]):
                 async for response in self.process(msg):
                     if response:
                         # Retrieve the output topic from the message or set a default
-                        topic = getattr(msg, 'output_topic', 'default_topic')
+                        topic = getattr(msg, "output_topic", "default_topic")
                         try:
                             await self.producer.produce(value=response, topic=topic)
                         except Exception as e:
@@ -65,11 +76,11 @@ class Processor(ABC, Generic[I, O, C]):
                 # Produce an error response if process fails
                 error_response = ErrorResponse(
                     type="ErrorResponse",
-                    request_id=getattr(msg, 'request_id', ''),
+                    request_id=getattr(msg, "request_id", ""),
                     error=str(e),
                     traceback=error_trace,
                 )
-                topic = getattr(msg, 'output_topic', 'default_topic')
+                topic = getattr(msg, "output_topic", "default_topic")
                 await self.producer.produce(value=error_response, topic=topic)
 
     async def run(self, config: C) -> None:
@@ -133,7 +144,9 @@ class Processor(ABC, Generic[I, O, C]):
                                 error=f"Validation error: {e}",
                                 traceback=error_trace,
                             )
-                            await self.producer.produce(value=error_response, topic=topic)
+                            await self.producer.produce(
+                                value=error_response, topic=topic
+                            )
 
                 if tasks:
                     # Run all tasks concurrently within limit
@@ -160,26 +173,33 @@ class Processor(ABC, Generic[I, O, C]):
 # ===== Chat Models =====
 ChatResponses = Union[ChatResponse, TokenResponse, ErrorResponse]
 
+
 class ChatModel(Processor[ChatRequest, ChatResponses, C], Generic[C]):
     def accepts(self) -> Type[ChatRequest]:
         return ChatRequest
 
+
 # ===== Completion Models =====
 CompletionResponses = Union[CompletionResponse, TokenResponse, ErrorResponse]
+
 
 class CompletionModel(Processor[CompletionRequest, CompletionResponses, C], Generic[C]):
     def accepts(self) -> Type[CompletionRequest]:
         return CompletionRequest
 
+
 # ===== OCR Models =====
 OCRResponses = Union[OCRResponse, ErrorResponse]
+
 
 class OCRModel(Processor[OCRRequest, OCRResponses, C], Generic[C]):
     def accepts(self) -> Type[OCRRequest]:
         return OCRRequest
 
+
 # ===== Embedding Models =====
 EmbeddingResponses = Union[EmbeddingResponse, ErrorResponse]
+
 
 class EmbeddingModel(Processor[EmbeddingRequest, EmbeddingResponses, C], Generic[C]):
     def accepts(self) -> Type[EmbeddingRequest]:
