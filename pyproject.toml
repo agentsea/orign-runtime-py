@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "orign-runtime"
-version = "0.1.11"
+version = "0.1.12"
 description = "Python runtime for Orign"
 authors = ["Patrick Barker <patrickbarkerco@gmail.com>"]
 license = "MIT"
@@ -18,7 +18,7 @@ qwen-vl-utils = "^0.0.8"
 opentelemetry-api = "^1.28.2"
 opentelemetry-sdk = "^1.28.2"
 opentelemetry-exporter-otlp = "^1.28.2"
-orign = "^0.1.18"
+orign = "^0.1.19"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
