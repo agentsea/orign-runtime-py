@@ -2,21 +2,19 @@
 import asyncio
 import os
 import traceback
-from typing import AsyncGenerator, List, NamedTuple, Optional
+import uuid
+from typing import AsyncGenerator, Optional
 
 import yaml
 from orign.models import (
     ChatRequest,
     ChatResponse,
     Choice,
-    ContentItem,
     ErrorResponse,
     TokenResponse,
 )
-from PIL import Image
 from pydantic_settings import BaseSettings
-from transformers import AutoProcessor, AutoTokenizer
-from vllm import LLM, AsyncEngineArgs, AsyncLLMEngine, SamplingParams
+from vllm import AsyncEngineArgs, AsyncLLMEngine
 from vllm import SamplingParams as VLLMSamplingParams
 from vllm.lora.request import LoRARequest
 
@@ -24,11 +22,7 @@ from orign_runtime.stream.processors.base_aio import ChatModel, ChatResponses
 from orign_runtime.stream.processors.chat.vllm.fmt import (
     MODEL_FORMATTER_MAP,
     MODEL_TYPE_MAP,
-    MessageFormatter,
-    MolmoMessageFormatter,
-    Qwen2VLMessageFormatter,
 )
-from orign_runtime.stream.util import open_image_from_input_async
 
 
 class vLLMConfig(BaseSettings):
@@ -96,8 +90,9 @@ class vLLM(ChatModel[vLLMConfig]):
             print(f"Adapter parts: {adapter_parts}", flush=True)
 
             org_names = []
-            for _, org_info in msg.organizations.items():
-                org_names.append(org_info["org_name"])
+            if msg.organizations:
+                for _, org_info in msg.organizations.items():
+                    org_names.append(org_info["org_name"])
 
             if len(adapter_parts) == 2:
                 namespace = adapter_parts[0]
@@ -138,7 +133,8 @@ class vLLM(ChatModel[vLLMConfig]):
                 print(f"Found LoRA checkpoint at: {lora_path}", flush=True)
 
             # is this adapter right?
-            lora_request = LoRARequest(msg.adapter, hash(lora_path), lora_path)
+            # adapter_id = uuid.uuid5(uuid.NAMESPACE_DNS, lora_path).int >> 64
+            lora_request = LoRARequest(msg.adapter, 1, lora_path)
             print(f"Created LoRA request: {lora_request}", flush=True)
 
         # Prepare the prompts and multimodal data
@@ -221,6 +217,17 @@ class vLLM(ChatModel[vLLMConfig]):
         lora_request: Optional[LoRARequest] = None,
     ):
         """Process a single prompt and handle streaming or non-streaming output."""
+
+        print(f"Processing prompt for request_id {request_id}")
+
+        # Log the LoRARequest details
+        if lora_request:
+            print(
+                f"Using LoRA adapter: {lora_request.name} (ID: {lora_request.adapter_id}) at path {lora_request.path}",
+                flush=True,
+            )
+        else:
+            print("No LoRA adapter provided.", flush=True)
 
         print(f"Processing prompt for request_id {request_id}")
         generator = self.engine.generate(
