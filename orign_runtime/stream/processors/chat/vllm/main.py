@@ -95,6 +95,10 @@ class vLLM(ChatModel[vLLMConfig]):
             adapter_parts = msg.adapter.split("/")
             print(f"Adapter parts: {adapter_parts}", flush=True)
 
+            org_names = []
+            for _, org_info in msg.organizations.items():
+                org_names.append(org_info["org_name"])
+
             if len(adapter_parts) == 2:
                 namespace = adapter_parts[0]
                 name = adapter_parts[1]
@@ -103,10 +107,7 @@ class vLLM(ChatModel[vLLMConfig]):
                     f"Checking authorization against org '{msg.organizations}' and handle '{msg.handle}'",
                     flush=True,
                 )
-                if (
-                    namespace not in msg.organizations.keys()
-                    and namespace != msg.handle
-                ):
+                if namespace not in org_names and namespace != msg.handle:
                     raise ValueError(
                         f"Adapter {msg.adapter} is not authorized for this request"
                     )

@@ -3281,13 +3281,13 @@ opentelemetry-api = "1.28.2"
 
 [[package]]
 name = "orign"
-version = "0.1.20"
+version = "0.1.21"
 description = "A Python client for Orign"
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "orign-0.1.20-py3-none-any.whl", hash = "sha256:bac416c5b5e053da2a771df3ae69d99d286c8d594bc36612795bf2ec580a25a9"},
-    {file = "orign-0.1.20.tar.gz", hash = "sha256:b81469101d54442ef50655e8e0657ba03f6e81e5e46331547af51567ed0162fb"},
+    {file = "orign-0.1.21-py3-none-any.whl", hash = "sha256:b7689f025c5b28819a0e6bd36c2def3de55c1e4aa474b34e3868f66f57e59233"},
+    {file = "orign-0.1.21.tar.gz", hash = "sha256:41e5712997436a2d13b6089858853667d0a4f509224d500bd90d7df8debfdda3"},
 ]
 
 [package.dependencies]
@@ -6972,4 +6972,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "1d4a48e48acaa7c63e322e134dc102495c3a4cd2f63d38ee86b1cc87d937d858"
+content-hash = "01d03865d5d53257271e2a95ce10d85c3cf10a306b7a9bf81ee108e8777ad472"

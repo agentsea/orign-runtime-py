@@ -18,7 +18,7 @@ qwen-vl-utils = "^0.0.8"
 opentelemetry-api = "^1.28.2"
 opentelemetry-sdk = "^1.28.2"
 opentelemetry-exporter-otlp = "^1.28.2"
-orign = "^0.1.20"
+orign = "^0.1.21"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
