@@ -63,6 +63,7 @@ class vLLM(ChatModel[vLLMConfig]):
             max_num_seqs=config.max_num_seqs,
             enforce_eager=config.enforce_eager,
             enable_lora=True,
+            max_lora_rank=512,
         )
         if config.max_images_per_prompt != 1:
             engine_args.limit_mm_per_prompt = {"image": config.max_images_per_prompt}
