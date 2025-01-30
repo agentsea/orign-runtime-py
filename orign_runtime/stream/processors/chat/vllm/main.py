@@ -42,6 +42,10 @@ class vLLMConfig(BaseSettings):
 class vLLM(ChatModel[vLLMConfig]):
     """vLLM backend"""
 
+    lora_id_mapping = {}
+    next_adapter_id = 1
+    lora_id_lock = asyncio.Lock()
+
     def load(self, config: vLLMConfig):
         self.config = config
 
@@ -133,9 +137,16 @@ class vLLM(ChatModel[vLLMConfig]):
                 lora_path = orign_config["latest_checkpoint"]
                 print(f"Found LoRA checkpoint at: {lora_path}", flush=True)
 
-            # is this adapter right?
+            async with vLLM.lora_id_lock:
+                if lora_path in vLLM.lora_id_mapping:
+                    adapter_id = vLLM.lora_id_mapping[lora_path]
+                else:
+                    adapter_id = vLLM.next_adapter_id
+                    vLLM.lora_id_mapping[lora_path] = adapter_id
+                    vLLM.next_adapter_id += 1
+
             # adapter_id = uuid.uuid5(uuid.NAMESPACE_DNS, lora_path).int >> 64
-            lora_request = LoRARequest(msg.adapter, 1, lora_path)
+            lora_request = LoRARequest(msg.adapter, adapter_id, lora_path)
             print(f"Created LoRA request: {lora_request}", flush=True)
 
         # Prepare the prompts and multimodal data
