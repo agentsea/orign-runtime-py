@@ -14,13 +14,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 
 # uv venv --python 3.12.8
 # source .venv/bin/activate
-pip install "git+https://github.com/ywang96/vllm@qwen2_5_vl"
-pip install "git+https://github.com/huggingface/transformers"
+RUN pip install "git+https://github.com/ywang96/vllm@qwen2_5_vl"
+RUN pip install "git+https://github.com/huggingface/transformers"
 
 COPY . /app
 
 WORKDIR /app
 
+RUN pip3 install qwen-vl-utils
 RUN pip3 install orign-runtime # $(date +%s)
 
 # This oddly fails on L40s boxes on EC2
