@@ -96,4 +96,4 @@ steps:
           --push \
           .
 
-timeout: "7200s"
+timeout: "21600s"
