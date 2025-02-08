@@ -1,11 +1,15 @@
 from abc import ABC, abstractmethod
-from typing import NamedTuple, Optional, List
+from typing import List, NamedTuple, Optional
 
-from orign_runtime.stream.processors.chat.vllm.qwen_vision import process_vision_info, fetch_image, extract_vision_info
 from orign.models import ChatRequest, Prompt
-from transformers import AutoTokenizer, AutoProcessor
 from PIL import Image
+from transformers import AutoProcessor, AutoTokenizer
 
+from orign_runtime.stream.processors.chat.vllm.qwen_vision import (
+    extract_vision_info,
+    fetch_image,
+    process_vision_info,
+)
 from orign_runtime.stream.util import open_image_from_input_async
 
 
@@ -17,7 +21,6 @@ class ModelRequestData(NamedTuple):
 
 
 class MessageFormatter(ABC):
-    
     @abstractmethod
     async def format(self, request: ChatRequest) -> ModelRequestData:
         pass
@@ -32,39 +35,33 @@ class Qwen2VLMessageFormatter(MessageFormatter):
         # Convert Prompt model to Qwen's expected format
         formatted_messages = []
         image_urls = []
-        
+
         for message in prompt.messages:
             if isinstance(message.content, str):
-                formatted_messages.append({
-                    "role": message.role,
-                    "content": message.content
-                })
+                formatted_messages.append(
+                    {"role": message.role, "content": message.content}
+                )
             else:  # List[ContentItem]
                 formatted_content = []
                 for item in message.content:
                     if item.type == "text":
-                        formatted_content.append({
-                            "type": "text",
-                            "text": item.text
-                        })
+                        formatted_content.append({"type": "text", "text": item.text})
                     elif item.type == "image_url" and item.image_url:
                         image_urls.append(item.image_url.url)
-                        formatted_content.append({
-                            "type": "image",
-                            "image": item.image_url.url
-                        })
-                
-                formatted_messages.append({
-                    "role": message.role,
-                    "content": formatted_content
-                })
+                        formatted_content.append(
+                            {"type": "image", "image": item.image_url.url}
+                        )
+
+                formatted_messages.append(
+                    {"role": message.role, "content": formatted_content}
+                )
 
         print("!type of formatted_messages: ", type(formatted_messages), flush=True)
         print("!formatted_messages: ", formatted_messages, flush=True)
 
-        prompt = self.processor.apply_chat_template(formatted_messages,
-                                            tokenize=False,
-                                            add_generation_prompt=True)
+        prompt = self.processor.apply_chat_template(
+            formatted_messages, tokenize=False, add_generation_prompt=True
+        )
 
         print("!type of prompt: ", type(prompt), flush=True)
         print("!prompt: ", prompt, flush=True)
@@ -72,7 +69,9 @@ class Qwen2VLMessageFormatter(MessageFormatter):
         stop_token_ids = None
 
         extracted_vision_info = extract_vision_info(formatted_messages)
-        print("!type of extracted_vision_info: ", type(extracted_vision_info), flush=True)
+        print(
+            "!type of extracted_vision_info: ", type(extracted_vision_info), flush=True
+        )
         print("!extracted_vision_info: ", extracted_vision_info, flush=True)
 
         for vision_info in extracted_vision_info:
@@ -90,7 +89,10 @@ class Qwen2VLMessageFormatter(MessageFormatter):
             print(f"Processing vision info for {len(image_urls)} images", flush=True)
             image_data, _ = process_vision_info(formatted_messages)
             print("past process_vision_info")
-            print(f"Processed vision info for {len(image_urls)} images: {image_data}", flush=True)
+            print(
+                f"Processed vision info for {len(image_urls)} images: {image_data}",
+                flush=True,
+            )
 
         print("!type of image_data: ", type(image_data), flush=True)
 
@@ -115,9 +117,7 @@ class MolmoMessageFormatter(MessageFormatter):
                 for content_item in msg_entry.content:
                     if content_item.type == "text" and content_item.text:
                         prompt_text += content_item.text + "\n"
-                    elif (
-                        content_item.type == "image_url" and content_item.image_url
-                    ):
+                    elif content_item.type == "image_url" and content_item.image_url:
                         try:
                             image_url = content_item.image_url.url
                             image = await open_image_from_input_async(image_url)
@@ -153,13 +153,11 @@ class MolmoMessageFormatter(MessageFormatter):
                 else:
                     print(f"Unknown content item type: {content_item.type}")
             else:
-                print(
-                    f"Unexpected content type in message: {type(msg_entry.content)}"
-                )
+                print(f"Unexpected content type in message: {type(msg_entry.content)}")
 
         if not prompt_text.strip():
             raise ValueError("No valid content found in message item")
-            
+
         stop_token_ids = None
 
         return ModelRequestData(
@@ -192,10 +190,13 @@ MODEL_TYPE_MAP = {
     "Qwen/Qwen2-VL-72B-Instruct-AWQ": "qwen2_vl",
     "Qwen/Qwen2-VL-72B-Instruct-GPTQ-Int4": "qwen2_vl",
     "Qwen/Qwen2-VL-72B-Instruct-GPTQ-Int8": "qwen2_vl",
+    # Qwen2.5-VL
+    "Qwen/Qwen2.5-VL-3B-Instruct": "qwen2_5_vl",
+    "Qwen/Qwen2.5-VL-7B-Instruct": "qwen2_5_vl",
+    "Qwen/Qwen2.5-VL-72B-Instruct": "qwen2_5_vl",
     # Molmo
     "allenai/Molmo-72B-0924": "molmo",
     "allenai/Molmo-7B-D-0924": "molmo",
     "allenai/Molmo-7B-O-0924": "molmo",
     "allenai/MolmoE-1B-0924": "molmo",
 }
-
