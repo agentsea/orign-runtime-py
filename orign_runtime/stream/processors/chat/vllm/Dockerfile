@@ -11,6 +11,7 @@ COPY . /app
 
 WORKDIR /app
 
+ARG CACHE_BUST=unknown
 RUN pip3 install qwen-vl-utils
 RUN pip3 install orign-runtime # $(date +%s)
 
