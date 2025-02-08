@@ -15,13 +15,7 @@ RUN pip3 install qwen-vl-utils
 RUN pip3 install orign-runtime # $(date +%s)
 
 # Install pre-built vLLM to get compiled CUDA code
-RUN pip install --pre --extra-index-url https://wheels.vllm.ai/nightly vllm
-
-# Clone your specific fork and branch
-RUN git clone --branch qwen2_5_vl https://github.com/ywang96/vllm.git /vllm_custom
-
-# Replace only the Python code from the custom fork
-RUN cp -r /vllm_custom/vllm /opt/conda/lib/python3.11/site-packages/
+RUN pip install vllm==0.7.2
 
 RUN pip install "git+https://github.com/huggingface/transformers"
 
