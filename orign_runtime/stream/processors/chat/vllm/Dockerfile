@@ -5,7 +5,6 @@ FROM pytorch/pytorch:2.5.1-cuda12.1-cudnn9-devel
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && apt-get install -y git wget
 
 # RUN pip install "git+https://github.com/ywang96/vllm@qwen2_5_vl"
-RUN pip install "git+https://github.com/huggingface/transformers"
 
 # Install pre-built vLLM to get compiled CUDA code
 RUN pip install --pre --extra-index-url https://wheels.vllm.ai/nightly vllm
@@ -15,6 +14,8 @@ RUN git clone --branch qwen2_5_vl https://github.com/ywang96/vllm.git /vllm_cust
 
 # Replace only the Python code from the custom fork
 RUN cp -r /vllm_custom/vllm /opt/conda/lib/python3.11/site-packages/
+
+RUN pip install "git+https://github.com/huggingface/transformers"
 
 COPY . /app
 
