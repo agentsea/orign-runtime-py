@@ -104,6 +104,84 @@ class Qwen2VLMessageFormatter(MessageFormatter):
         )
 
 
+class Qwen25VLMessageFormatter(MessageFormatter):
+    def __init__(self):
+        self.processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
+
+    async def format(self, prompt: Prompt) -> ModelRequestData:
+        print(f"Formatting prompt: {prompt}")
+        # Convert Prompt model to Qwen's expected format
+        formatted_messages = []
+        image_urls = []
+
+        for message in prompt.messages:
+            if isinstance(message.content, str):
+                formatted_messages.append(
+                    {"role": message.role, "content": message.content}
+                )
+            else:  # List[ContentItem]
+                formatted_content = []
+                for item in message.content:
+                    if item.type == "text":
+                        formatted_content.append({"type": "text", "text": item.text})
+                    elif item.type == "image_url" and item.image_url:
+                        image_urls.append(item.image_url.url)
+                        formatted_content.append(
+                            {"type": "image", "image": item.image_url.url}
+                        )
+
+                formatted_messages.append(
+                    {"role": message.role, "content": formatted_content}
+                )
+
+        print("!type of formatted_messages: ", type(formatted_messages), flush=True)
+        print("!formatted_messages: ", formatted_messages, flush=True)
+
+        prompt = self.processor.apply_chat_template(
+            formatted_messages, tokenize=False, add_generation_prompt=True
+        )
+
+        print("!type of prompt: ", type(prompt), flush=True)
+        print("!prompt: ", prompt, flush=True)
+
+        stop_token_ids = None
+
+        extracted_vision_info = extract_vision_info(formatted_messages)
+        print(
+            "!type of extracted_vision_info: ", type(extracted_vision_info), flush=True
+        )
+        print("!extracted_vision_info: ", extracted_vision_info, flush=True)
+
+        for vision_info in extracted_vision_info:
+            print("!type of vision_info: ", type(vision_info), flush=True)
+            print("!vision_info: ", vision_info, flush=True)
+            print("fetching image vision info...")
+            image_data = fetch_image(vision_info)
+            print("!type of image_data: ", type(image_data), flush=True)
+            print("!image_data: ", image_data, flush=True)
+
+        if process_vision_info is None:
+            image_data = [await open_image_from_input_async(url) for url in image_urls]
+        else:
+            print("image_urls: ", image_urls, flush=True)
+            print(f"Processing vision info for {len(image_urls)} images", flush=True)
+            image_data, _ = process_vision_info(formatted_messages)
+            print("past process_vision_info")
+            print(
+                f"Processed vision info for {len(image_urls)} images: {image_data}",
+                flush=True,
+            )
+
+        print("!type of image_data: ", type(image_data), flush=True)
+
+        return ModelRequestData(
+            prompt=prompt,
+            stop_token_ids=stop_token_ids,
+            image_data=image_data,
+            chat_template=None,
+        )
+
+
 class MolmoMessageFormatter(MessageFormatter):
     async def format(self, prompt: Prompt) -> ModelRequestData:
         prompt_text = ""
@@ -170,6 +248,7 @@ class MolmoMessageFormatter(MessageFormatter):
 
 MODEL_FORMATTER_MAP = {
     "qwen2_vl": Qwen2VLMessageFormatter,
+    "qwen2_5_vl": Qwen25VLMessageFormatter,
     "molmo": MolmoMessageFormatter,
 }
 
