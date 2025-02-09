@@ -16,7 +16,9 @@ RUN pip3 install qwen-vl-utils
 RUN pip3 install orign-runtime # $(date +%s)
 
 # Install pre-built vLLM to get compiled CUDA code
-RUN pip install vllm==0.7.2
+# RUN pip install vllm==0.7.2
+RUN pip install https://vllm-wheels.s3.us-west-2.amazonaws.com/nightly/vllm-1.0.0.dev-cp38-abi3-manylinux1_x86_64.whl
+
 
 RUN pip install "git+https://github.com/huggingface/transformers"
 
