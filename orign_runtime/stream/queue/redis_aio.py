@@ -1,9 +1,11 @@
 # orign/server/queue/redis_aio.py
-from typing import Optional, Callable, Any, List, Dict
-from pydantic import BaseModel
-import redis.asyncio as redis
+import os
 import time
 import traceback
+from typing import Any, Callable, Dict, List, Optional
+
+import redis.asyncio as redis
+from pydantic import BaseModel
 
 from ..config import BaseConfig
 from .base import AsyncMessageConsumer, AsyncMessageProducer
@@ -17,10 +19,17 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
         self.consumer_name = f"{config.GROUP_ID}-{int(time.time())}"
         self.pending_messages: Dict[str, List[Any]] = {}
         self.pending_message_ids: Dict[str, List[str]] = {}
+        self.password = os.environ.get("REDIS_PASSWORD")
+        if not self.password:
+            raise ValueError("REDIS_PASSWORD env var is not set")
 
     async def start(self) -> None:
         print("Starting AsyncRedisMessageConsumer...")
-        self.redis = redis.from_url(self.config.REDIS_URL, decode_responses=True)
+        self.redis = redis.from_url(
+            self.config.REDIS_URL,
+            password=self.password,
+            decode_responses=True,
+        )
 
         # Create consumer group for each input topic
         for topic in self.config.INPUT_TOPICS:
@@ -137,7 +146,9 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
 
     async def commit(self) -> None:
         try:
-            print(f"Committing messages for topics: {list(self.pending_message_ids.keys())}")
+            print(
+                f"Committing messages for topics: {list(self.pending_message_ids.keys())}"
+            )
             # Acknowledge messages for each topic
             for topic, msg_ids in self.pending_message_ids.items():
                 if msg_ids:
@@ -145,7 +156,9 @@ class AsyncRedisMessageConsumer(AsyncMessageConsumer):
                     await self.redis.xack(topic, self.consumer_group, *msg_ids)
             self.pending_messages.clear()
             self.pending_message_ids.clear()
-            print("Commit successful, cleared pending messages and pending_message_ids.")
+            print(
+                "Commit successful, cleared pending messages and pending_message_ids."
+            )
         except Exception as e:
             print(f"Error during commit: {e}")
             traceback.print_exc()
@@ -171,9 +184,16 @@ class AsyncRedisMessageProducer(AsyncMessageProducer):
     def __init__(self, config: BaseConfig) -> None:
         self.config = config
         self.redis: Optional[redis.Redis] = None
+        self.password = os.environ.get("REDIS_PASSWORD")
+        if not self.password:
+            raise ValueError("REDIS_PASSWORD env var is not set")
 
     async def start(self) -> None:
-        self.redis = redis.from_url(self.config.REDIS_URL, decode_responses=True)
+        self.redis = redis.from_url(
+            self.config.REDIS_URL,
+            password=self.password,
+            decode_responses=True,
+        )
         print("Initialized AsyncRedisMessageProducer", flush=True)
 
     async def produce(
@@ -192,10 +212,10 @@ class AsyncRedisMessageProducer(AsyncMessageProducer):
             raise ValueError("Value must be a Pydantic model: ", value)
 
         try:
-            serialized_value = value.model_dump_json().encode('utf-8')
+            serialized_value = value.model_dump_json().encode("utf-8")
         except Exception as e:
             raise ValueError(f"Error serializing value: {e} value: {value}")
-        
+
         try:
             # Add message to stream
             msg_id = await self.redis.xadd(topic, {"message": serialized_value})
