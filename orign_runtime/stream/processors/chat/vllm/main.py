@@ -94,10 +94,14 @@ class vLLM(ChatModel[vLLMConfig]):
             adapter_parts = msg.adapter.split("/")
             print(f"Adapter parts: {adapter_parts}", flush=True)
 
+            org_slugs = []
             org_names = []
+            org_map = {}
             if msg.organizations:
-                for _, org_info in msg.organizations.items():
+                for org_slug, org_info in msg.organizations.items():
+                    org_slugs.append(org_slug)
                     org_names.append(org_info["org_name"])
+                    org_map[org_info["org_name"]] = org_slug
 
             if len(adapter_parts) == 2:
                 namespace = adapter_parts[0]
@@ -111,10 +115,11 @@ class vLLM(ChatModel[vLLMConfig]):
                     raise ValueError(
                         f"Adapter {msg.adapter} is not authorized for this request"
                     )
-                adapter_name = f"{namespace}/{name}"
+                adapter_name = f"{org_map[namespace]}/{name}"
+
             elif len(adapter_parts) == 1:
                 name = adapter_parts[0]
-                namespace = msg.handle
+                namespace = msg.user_id
                 print(
                     f"Single part adapter, using namespace '{namespace}' and name '{name}'",
                     flush=True,
