@@ -2,7 +2,6 @@
 import asyncio
 import os
 import traceback
-import uuid
 from typing import AsyncGenerator, Optional
 
 import yaml
@@ -56,6 +55,8 @@ class vLLM(ChatModel[vLLMConfig]):
                     f"Uknown model type for {config.model_name}, consider setting model_type explicitly"
                 )
 
+        print(f"using config: {config}", flush=True)
+
         engine_args = AsyncEngineArgs(
             model=config.model_name,
             trust_remote_code=config.trust_remote_code,
@@ -68,6 +69,7 @@ class vLLM(ChatModel[vLLMConfig]):
             enforce_eager=config.enforce_eager,
             enable_lora=True,
             max_lora_rank=256,
+            limit_mm_per_prompt={"image": 2},  # TODO: for debugging
         )
         if config.max_images_per_prompt != 1:
             engine_args.limit_mm_per_prompt = {"image": config.max_images_per_prompt}
