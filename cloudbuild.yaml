@@ -90,6 +90,7 @@ steps:
         cd ./orign_runtime/stream/processors/chat/litellm && \
         docker buildx build \
           --platform linux/amd64 \
+          --build-arg CACHE_BUST=$(date +%s) \
           -t us-docker.pkg.dev/$PROJECT_ID/orign/litellm:latest \
           -f Dockerfile \
           --cache-from type=registry,ref=us-docker.pkg.dev/$PROJECT_ID/orign/litellm:buildcache \
